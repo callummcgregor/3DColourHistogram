@@ -39,51 +39,44 @@ function createWireframeCube( world ) {
     } );
 
     var sidesGeometry = new THREE.Geometry();
-    sidesGeometry.vertices.push( new THREE.Vector3( -0.5, -0.5, -0.5 ) );
-    sidesGeometry.vertices.push( new THREE.Vector3( -0.5,  0.5, -0.5 ) );
-    sidesGeometry.vertices.push( new THREE.Vector3( -0.5,  0.5,  0.5 ) );
-    sidesGeometry.vertices.push( new THREE.Vector3( -0.5, -0.5,  0.5 ) );
-    sidesGeometry.vertices.push( new THREE.Vector3( -0.5, -0.5, -0.5 ) );
-    sidesGeometry.vertices.push( new THREE.Vector3(  0.5, -0.5, -0.5 ) );
-    sidesGeometry.vertices.push( new THREE.Vector3(  0.5,  0.5, -0.5 ) );
-    sidesGeometry.vertices.push( new THREE.Vector3(  0.5,  0.5,  0.5 ) );
-    sidesGeometry.vertices.push( new THREE.Vector3(  0.5, -0.5,  0.5 ) );
-    sidesGeometry.vertices.push( new THREE.Vector3(  0.5, -0.5, -0.5 ) );
+    sidesGeometry.vertices.push( new THREE.Vector3( -0.5, -0.5, -0.5 ) ); // Black
+    sidesGeometry.vertices.push( new THREE.Vector3( -0.5,  0.5, -0.5 ) ); // Green
+    sidesGeometry.vertices.push( new THREE.Vector3( -0.5,  0.5,  0.5 ) ); // Cyan
+    sidesGeometry.vertices.push( new THREE.Vector3( -0.5, -0.5,  0.5 ) ); // Blue
+    sidesGeometry.vertices.push( new THREE.Vector3( -0.5, -0.5, -0.5 ) ); // Black
+    sidesGeometry.vertices.push( new THREE.Vector3(  0.5, -0.5, -0.5 ) ); // Red
+    sidesGeometry.vertices.push( new THREE.Vector3(  0.5,  0.5, -0.5 ) ); // Yellow
+    sidesGeometry.vertices.push( new THREE.Vector3(  0.5,  0.5,  0.5 ) ); // White
+    sidesGeometry.vertices.push( new THREE.Vector3(  0.5, -0.5,  0.5 ) ); // Magenta
+    sidesGeometry.vertices.push( new THREE.Vector3(  0.5, -0.5, -0.5 ) ); // Red
 
     sidesGeometry = colourGeometryVerticesByPosition( sidesGeometry );
 
     var sides = new THREE.Line( sidesGeometry, material );
 
-    var connectingLineGeometry1 = new THREE.Geometry();
-    connectingLineGeometry1.vertices.push( new THREE.Vector3 (  0.5, 0.5, -0.5 ) );
-    connectingLineGeometry1.vertices.push( new THREE.Vector3 ( -0.5, 0.5, -0.5 ) );
+    var connectingEdgesGeometry = new THREE.Geometry();
+    connectingEdgesGeometry.vertices.push( new THREE.Vector3 (  0.5,  0.5, -0.5 ) ); // Yellow
+    connectingEdgesGeometry.vertices.push( new THREE.Vector3 ( -0.5,  0.5, -0.5 ) ); // Green
+    connectingEdgesGeometry.vertices.push( new THREE.Vector3 (  0.5,  0.5,  0.5 ) ); // White
+    connectingEdgesGeometry.vertices.push( new THREE.Vector3 ( -0.5,  0.5,  0.5 ) ); // Cyan
+    connectingEdgesGeometry.vertices.push( new THREE.Vector3 (  0.5, -0.5,  0.5 ) ); // Magenta
+    connectingEdgesGeometry.vertices.push( new THREE.Vector3 ( -0.5, -0.5,  0.5 ) ); // Blue
 
-    connectingLineGeometry1 = colourGeometryVerticesByPosition( connectingLineGeometry1 );
+    connectingEdgesGeometry = colourGeometryVerticesByPosition( connectingEdgesGeometry );
 
-    var connectingLine1 = new THREE.Line( connectingLineGeometry1, material );
-
-    var connectingLineGeometry2 = new THREE.Geometry();
-    connectingLineGeometry2.vertices.push( new THREE.Vector3 (  0.5, 0.5,  0.5 ) );
-    connectingLineGeometry2.vertices.push( new THREE.Vector3 ( -0.5, 0.5,  0.5 ) );
-
-    connectingLineGeometry2 = colourGeometryVerticesByPosition( connectingLineGeometry2 );
-
-    var connectingLine2 = new THREE.Line( connectingLineGeometry2, material );
-
-    var connectingLineGeometry3 = new THREE.Geometry();
-    connectingLineGeometry3.vertices.push( new THREE.Vector3 (  0.5, -0.5,  0.5 ) );
-    connectingLineGeometry3.vertices.push( new THREE.Vector3 ( -0.5, -0.5,  0.5 ) );
-
-    connectingLineGeometry3 = colourGeometryVerticesByPosition( connectingLineGeometry3 );
-
-    var connectingLine3 = new THREE.Line( connectingLineGeometry3, material );
+    var connectingEdges = new THREE.LineSegments( connectingEdgesGeometry, material );
 
     world.scene.add( sides );
-    world.scene.add( connectingLine1 );
-    world.scene.add( connectingLine2 );
-    world.scene.add( connectingLine3 );
+    world.scene.add( connectingEdges );
 }
 
+/**
+ * Assign colour to the vertices of a geometry corresponding to their position relative to the (0, 0, 0) origin
+ * Note: I believe that the size var assumes a unit geometry
+ *
+ * @param geometry The geometry to be coloured
+ * @returns {*} The geometry once coloured
+ */
 function colourGeometryVerticesByPosition( geometry ) {
     var color, point;
     var size = 1;
@@ -99,16 +92,19 @@ function colourGeometryVerticesByPosition( geometry ) {
     return geometry;
 }
 
+/**
+ * Responsible for redrawing the scene each frame
+ *
+ * @param world The world being rendered
+ */
 function render( world ) {
 
     world.controls.update();
 
     world.renderer.render( world.scene, world.camera );
 
+    // Anom. function used because render() has parameters
     requestAnimationFrame( function() {
         render( world );
     } );
-
-
-
 }
