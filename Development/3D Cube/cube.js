@@ -21,19 +21,98 @@ function onLoad() {
 
     world.camera.position.z = 2;
 
+    var colors = [
+        new THREE.Color( 1.0, 1.0, 1.0 ),
+        new THREE.Color( 1.0, 1.0, 0.0 ),
+        new THREE.Color( 1.0, 0.0, 1.0 ),
+        new THREE.Color( 1.0, 0.0, 0.0 ),
+        new THREE.Color( 0.0, 1.0, 1.0 ),
+        new THREE.Color( 0.0, 1.0, 0.0 ),
+        new THREE.Color( 0.0, 0.0, 1.0 ),
+        new THREE.Color( 0.0, 0.0, 0.0 ),
+        new THREE.Color( 0.25, 0.25, 0.25 ),
+        new THREE.Color( 0.5, 0.5, 0.5 ),
+        new THREE.Color( 0.75, 0.75, 0.75 ),
+        new THREE.Color( 1.0, 0.6, 0.72 )
+    ];
     createWireframeCube( world );
 
+    plotColors( world, colors );
+
     render( world );
+}
+
+/**
+ * Takes in an array of colours and plots them in the unit cube, coloured appropriately.
+ * Currently plots as constant radius spheres.
+ *
+ * @param world The world in which the colours will be plotted
+ * @param colors An array of THREE.Colors to plot
+ */
+function plotColors( world, colors ) {
+    var pointGeometry, pointMaterial, pointMesh;
+    var combinedGeometry, combinedMaterial, combinedMesh;
+    var sphereRadius = 0.075;
+    var meshes = [];
+
+    for ( var i = 0; i < colors.length; i++ ) {
+        pointGeometry = new THREE.SphereGeometry( sphereRadius );
+        pointMaterial = new THREE.MeshBasicMaterial(); // Changes made to this material will have no effect on the objects
+
+        pointMesh = new THREE.Mesh(pointGeometry, pointMaterial);
+
+        var position = findPositionOfColor( colors[i] );
+
+        pointMesh.position.x = position.x; // This works, but pointMesh.position = position does not
+        pointMesh.position.y = position.y;
+        pointMesh.position.z = position.z;
+
+        meshes.push(pointMesh);
+    }
+
+    combinedGeometry = mergeMeshes( meshes );
+    combinedMaterial = new THREE.ShaderMaterial( {
+        vertexShader: document.getElementById("vertexShader").textContent,
+        fragmentShader: document.getElementById("fragmentShader").textContent,
+        wireframe: true
+    } );
+
+    combinedMesh = new THREE.Mesh( combinedGeometry, combinedMaterial );
+
+    world.scene.add( combinedMesh );
+}
+
+function findPositionOfColor( color ) {
+    return new THREE.Vector3( color.r - 0.5, color.g - 0.5, color.b - 0.5 );
+}
+
+/**
+ * Takes an array of meshes and merges them together for performance purposes
+ *
+ * @param meshes An array of meshes to be merged into one
+ *
+ * @return {*} The combined meshes
+ */
+function mergeMeshes( meshes ) {
+    var combined = new THREE.Geometry();
+
+    for ( var i = 0; i < meshes.length; i++ ) {
+        meshes[i].updateMatrix();
+        combined.merge( meshes[i].geometry, meshes[i].matrix );
+    }
+
+    return combined;
 }
 
 /**
  * Create a wireframe cube (without diagonals drawn), coloured with R, G, and B being 0 - 1 along
  *  the X, Y, and Z axis' respectively
  *
+ * Note: Worth considering putting entire cube into a LineSegments geometry for the sake of performance
+ *
  * @param world The world in which the wireframe cube is drawn
  */
 function createWireframeCube( world ) {
-
     var material = new THREE.LineBasicMaterial( {
         vertexColors: THREE.VertexColors
     } );
@@ -71,25 +150,33 @@ function createWireframeCube( world ) {
 }
 
 /**
- * Assign colour to the vertices of a geometry corresponding to their position relative to the (0, 0, 0) origin
- * Note: I believe that the size var assumes a unit geometry
+ * Assign colour to the vertices of a geometry corresponding to their position relative to the (0.5, 0.5, 0.5) origin
  *
  * @param geometry The geometry to be coloured
  * @returns {*} The geometry once coloured
  */
 function colourGeometryVerticesByPosition( geometry ) {
     var color, point;
-    var size = 1;
 
     // Assign colours to each vertex corresponding to the position
     for ( var i = 0; i < geometry.vertices.length; i++ ) {
         point = geometry.vertices[ i ];
         color = new THREE.Color( 0xffffff );
-        color.setRGB( 0.5 + point.x / size, 0.5 + point.y / size, 0.5 + point.z / size );
+        color.set( findColorOfPoint( point ) );
         geometry.colors[i] = color; // use this array for convenience
     }
 
     return geometry;
+}
+
+/**
+ * Calculates and returns the colour of a point relative to the (0.5, 0.5, 0.5) origin
+ *
+ * @param point
+ * @returns {THREE.Color}
+ */
+function findColorOfPoint( point ) {
+    return new THREE.Color( 0.5 + point.x, 0.5 + point.y, 0.5 + point.z );
 }
 
 /**

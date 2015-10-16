@@ -14,6 +14,27 @@
     <!-- Uses http://stackoverflow.com/questions/17341122/link-and-execute-external-javascript-file-hosted-on-github -->
     <script src="https://cdn.rawgit.com/mrdoob/three.js/master/build/three.min.js"></script>
     <script src="https://cdn.rawgit.com/mrdoob/three.js/master/examples/js/controls/OrbitControls.js"></script>
+    <script type="x-shader/x-vertex" id="vertexShader">
+        varying vec3 vColor;
+
+        void main()
+        {
+            vColor = vec3( position.x + 0.5, position.y + 0.5, position.z + 0.5 );
+
+            gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+        }
+    </script>
+
+    <script type="x-shader/x-vertex" id="fragmentShader">
+        varying vec3 vColor;
+
+        void main( void )
+        {
+            gl_FragColor = vec4(vColor, 1);
+
+        }
+    </script>
+
     <script src="cube.js"></script>
 </body>
 </html>
