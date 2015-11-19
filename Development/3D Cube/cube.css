@@ -1,0 +1,25 @@
+#input_section {
+    background-color: black;
+    color: white;
+    text-align: center;
+    padding: 5px;
+}
+
+#image_holder {
+    background-color: #eeeeee;
+    height: 300px;
+    width: 200px;
+    float: left;
+}
+
+#image_canvas {
+    width: inherit;
+    height: inherit;
+}
+
+#histogram_holder {
+    background-color: lime; /* Obvious if something has gone wrong */
+    height: 600px;
+    width: 800px;
+    float: left;
+}

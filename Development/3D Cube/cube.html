@@ -3,10 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Simple Three.js Cube</title>
-    <style>
-        body { margin: 0; }
-
-    </style>
+    <link rel="stylesheet" type="text/css" href="cube.css">
 
 </head>
 <body onload="onLoad();">
@@ -24,7 +21,6 @@
             gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
         }
     </script>
-
     <script type="x-shader/x-vertex" id="fragmentShader">
         varying vec3 vColor;
 
@@ -34,7 +30,16 @@
 
         }
     </script>
-
     <script src="cube.js"></script>
+
+    <div id="input_section">
+        <input type="file" id="file_input">
+    </div>
+    <div id="image_holder">
+        <canvas id="image_canvas"></canvas>
+    </div>
+    <div id="histogram_holder">
+        <!-- Contents generated and inserted in JavaScript code !-->
+    </div>
 </body>
 </html>
