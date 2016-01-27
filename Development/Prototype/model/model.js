@@ -1,12 +1,37 @@
 /**
- * Created by callum on 09/08/15.
+ * Created by callum on 13/01/2016.
  */
 
+function handleRawImage(file) {
+    var imageCanvas = document.getElementById("image_canvas");
+    var context = imageCanvas.getContext("2d");
+
+    var image = new Image();
+    image.onload = function() {
+        var imageHeight = image.height;
+        var imageWidth = image.width;
+
+        console.log("image: " + image);
+        console.log("image width : ", imageWidth);
+        console.log("image height: ", imageHeight);
+
+        // Create and fire an event containing the image, to which the controller is a listener
+        var event = document.createEvent("CustomEvent");
+        event.initEvent("imageSaved", false, false);
+        event.image = image;
+        document.dispatchEvent(event);
+
+        var pixelColorsa16bit = applyColorQuantisation(image, context, 16);
+        plotColors(world, pixelColors16bit);
+    };
+
+    image.src = URL.createObjectURL(file); // Let this go to prevent memory leaks
+}
+
 /**
- * Called when the page loads
- * Initialises the world and initial objects within it
+ * Initialises the rendering's world and initial objects within it
  */
-function onLoad() {
+function buildWorld() {
     // Set up the Three.js variables, encapsulated in a world object
     //var canvasWidth = window.innerWidth;
     //var canvasHeight = window.innerHeight;
@@ -26,90 +51,8 @@ function onLoad() {
     var canvas = document.getElementById("histogram_holder");
     canvas.appendChild( world.renderer.domElement );
 
-    // Add event listener to the HTML5 file input
-    document.getElementById("file_input").addEventListener("change", function() {
-        var file = this.files[0]; // Only one file is being uploaded at a time
-
-        var imageCanvas = document.getElementById("image_canvas");
-        var context = imageCanvas.getContext("2d");
-
-        var image = new Image();
-        image.onload = function() {
-            var imageHeight = 20;//imageCanvas.height;
-            var imageWidth = 20;//imageCanvas.width;
-
-            context.drawImage(image, 0, 0, imageWidth, imageWidth);
-
-            console.log("Image width : ", imageWidth);
-            console.log("Image height: ", imageHeight);
-
-            var pixelCount = 0;
-            // Initiate array
-            // Each colour channel ranges from 0 to 255
-            var pixelColours = new Array(imageWidth * imageHeight);
-            for (var i = 0; i < pixelColours.length; i++) {
-                pixelColours[i] = new Array(3);
-            }
-
-            for (var x = 0; x < imageWidth; x++) {
-                for (var y = 0; y < imageHeight; y++) {
-                    var pixelData = context.getImageData(x, y, 1, 1).data;
-                    pixelColours[pixelCount][0] = pixelData[0];
-                    pixelColours[pixelCount][1] = pixelData[1];
-                    pixelColours[pixelCount][2] = pixelData[2];
-                    pixelCount++;
-                }
-            }
-
-            console.log("pixelCount: ", pixelCount);
-
-            var pixelColors16bit = applyColorQuantisation(pixelColours, 16);
-            plotColors(world, pixelColors16bit);
-        };
-
-        image.src = URL.createObjectURL(file); // Let this go to prevent memory leaks
-    }, false);
-
-    createWireframeCube( world );
-    render( world );
-
-    // Array of colours to be displayed in the histogram. Replace this with results from colour quantization
-    var dummyColors = [
-        new THREE.Color( 1.0, 1.0, 1.0 ),
-        new THREE.Color( 1.0, 1.0, 0.0 ),
-        new THREE.Color( 1.0, 0.0, 1.0 ),
-        new THREE.Color( 1.0, 0.0, 0.0 ),
-        new THREE.Color( 0.0, 1.0, 1.0 ),
-        new THREE.Color( 0.0, 1.0, 0.0 ),
-        new THREE.Color( 0.0, 0.0, 1.0 ),
-        new THREE.Color( 0.0, 0.0, 0.0 ),
-        new THREE.Color( 0.25, 0.25, 0.25 ),
-        new THREE.Color( 0.5, 0.5, 0.5 ),
-        new THREE.Color( 0.75, 0.75, 0.75 ),
-        new THREE.Color( 0.5, 0.75, 0.5)
-    ];
-    //plotColors( world, dummyColors );
-}
-
-/**
- * Sort colours from 255 bins to the given number of bins
- */
-function applyColorQuantisation(colors, numberOfBins) {
-    var quantisedColors = new Array(colors.length);
-    for (var i = 0; i < quantisedColors.length; i++) {
-        quantisedColors[i] = new Array(3);
-    }
-
-    for (var i = 0; i < colors.length; i++) {
-        // Iterate over the red, green, and blue channels
-        for (var j = 0; j < 3; j++) {
-            var rawColor = colors[i][j];
-            quantisedColors[i][j] = Math.floor(rawColor / numberOfBins);
-            //console.log("Raw Color: ", rawColor, " Quantised Color: ", quantisedColor);
-        }
-    }
-
-    return quantisedColors;
+    createWireframeCube(world);
+    render(world);
 }
 
 /**
@@ -168,7 +111,7 @@ function findPositionOfColor( color ) {
  * @param meshes An array of meshes to be merged into one
  * @return {*} The combined meshes
  */
-function mergeMeshes( meshes ) {
+function mergeMeshes(meshes) {
     var combined = new THREE.Geometry();
 
     for ( var i = 0; i < meshes.length; i++ ) {
@@ -267,4 +210,37 @@ function render( world ) {
     requestAnimationFrame( function() {
         render( world );
     } );
+}
+
+function applyColorQuantisation(image, context, numberOfBins) {
+    var pixelCount = 0;
+    var pixelColours = new Array(image.width * image.height);
+    for (var i = 0; i < pixelColours.length; i++) {
+        pixelColours[i] = new Array(3);
+    }
+
+    for (var x = 0; x < image.width; x++) {
+        for (var y = 0; y < image.height; y++) {
+            var pixelData = context.getImageData(x, y, 1, 1).data;
+            pixelColours[pixelCount][0] = pixelData[0];
+            pixelColours[pixelCount][1] = pixelData[1];
+            pixelColours[pixelCount][2] = pixelData[2];
+            pixelCount++;
+        }
+    }
+
+    var quantisedColors = new Array(pixelColours.length);
+    for (var i = 0; i < quantisedColors.length; i++) {
+        quantisedColors[i] = new Array(3);
+    }
+
+    for (var i = 0; i < pixelColours.length; i++) {
+        // Iterate over the red, green, and blue channels
+        for (var j = 0; j < 3; j++) {
+            var rawColor = pixelColours[i][j];
+            quantisedColors[i][j] = Math.floor(rawColor / numberOfBins);
+        }
+    }
+
+    return quantisedColors;
 }

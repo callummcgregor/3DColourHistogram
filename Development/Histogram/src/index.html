@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>3D Colour Histogram</title>
+    <link rel="stylesheet" type="text/css" href="index.css">
+</head>
+<body>
+    <script src="https://cdn.rawgit.com/mrdoob/three.js/master/build/three.min.js"></script>
+    <script src="https://cdn.rawgit.com/mrdoob/three.js/master/examples/js/controls/OrbitControls.js"></script>
+
+    <script type="x-shader/x-vertex" id="vertexShader">
+        varying vec3 vColor;
+
+        void main() {
+            vColor = vec3(position.x + 0.5, position.y + 0.5, position.z + 0.5);
+
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+    </script>
+    <script type="x-shader/x-vertex" id="fragmentShader">
+        varying vec3 vColor;
+
+        void main(void) {
+            gl_FragColor = vec4(vColor, 1);
+        }
+    </script>
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js"></script>
+    <script src="index.js"></script>
+    <script src="model.js"></script>
+    <script src="view.js"></script>
+    <script src="controller.js"></script>
+    <script src="utils.js"></script>
+    <!--<script src="../test/utilsTest.js"></script>-->
+
+    <!-- HTML Elements start here !-->
+    <div id="input_section">
+        <input type="file" id="file_input">
+        <button id="constructLut">Construct LUT</button>
+    </div>
+    <div id="image_holder">
+        <canvas id="image_canvas" width="200" height="200"></canvas>
+    </div>
+    <div id="histogram_holder">
+    </div>
+</body>
+</html>
