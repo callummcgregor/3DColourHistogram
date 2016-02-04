@@ -28,6 +28,7 @@ Model.prototype = {
     },
 
     extractColors: function(context) {
+        console.log(context);
         var width = context.canvas.width;
         var height = context.canvas.height;
         var colors = new Array(width * height);
@@ -50,42 +51,55 @@ Model.prototype = {
         this.colorsExtracted.notify(this._sRGBColors);
     },
 
-    transform24BitTo16Bit: function(colors24Bit) {
-        lut = [];
-        for(var i = 0; i < 4096; i++) {
-            // Dictionary of 16-bit to 24-bit colour mappings in the range 0-1
-            // Key: 16 bit colour
-            // Value: 24 bit colour equivalent
-            lut.push({
-                key: new ColorRGB((i%16)/15, (Math.floor(i/16)%16)/15, (Math.floor(i/256))/15), // TODO: Generalise
-                //key: new ColorRGB((i%4)/3, (Math.floor(i/4)%4)/3, (Math.floor(i/16))/3),
-                value: new ColorRGB(((i%16) * 17)/255, ((Math.floor(i/16)%16) * 17)/255, (Math.floor(i/256) * 17)/255) // Add % on z coord if dimensions change?
-            });
+    /**
+     * Generates a look-up table (lut) of from-bit colours to to-bit colours (e.g. 24-bit to 16-bit)
+     * Note: 24-bit colours are a misnomer and have 256 denominations, unlike 8-bit or 16-bit colours
+     *  which have 8 or 16 denominations respectively
+     *
+     * @param from The number of denominations of the input colours
+     * @param to The number of denomications of the output colours
+     * @returns {Array} A look-up table of to-bit colour equivalents in the from-bit coordinates
+     */
+    generateLut: function(from, to) {
+        fromMax = from - 1;
+        toMax = to - 1;
+        ratio = fromMax / toMax;
+
+        var lut = [];
+
+        for(var i = 0; i < (to*to*to); i++) {
+            lut[i] = new ColorRGB(
+                ((i%to) * ratio)/fromMax,
+                ((Math.floor(i/to)%to) * ratio)/fromMax,
+                ((Math.floor(i/(to*to))) * ratio)/fromMax);
         }
+
+        return lut;
+    },
+
+    transform24BitTo16Bit: function(colors24Bit) {
+        var lut = this.generateLut(256, 16);
 
         var colors16Bit = [];
 
+        // For each colour in the image, find it's 16-bit equivalent
         for(var i = 0; i < colors24Bit.length; i++) {
-            var closest16BitColor = null;
-            var closestDistance = Math.sqrt(3 * Math.pow(255, 2));
+            var minDistance = Math.sqrt(3); // TODO: Generalise/explain?
+            var minIndex = null;
 
+            // Iterate over lut, finding entry that is cloest to 24-bit colour
             for(var j = 0; j < lut.length; j++) {
-                var rDiff = colors24Bit[i].r - lut[j].key.r;
-                var gDiff = colors24Bit[i].g - lut[j].key.g;
-                var bDiff = colors24Bit[i].b - lut[j].key.b;
+                var rDiff = colors24Bit[i].r - lut[j].r;
+                var gDiff = colors24Bit[i].g - lut[j].g;
+                var bDiff = colors24Bit[i].b - lut[j].b;
                 var distance = Math.sqrt(Math.pow(rDiff, 2) + Math.pow(gDiff, 2) + Math.pow(bDiff, 2));
-                if (distance < closestDistance) {
-                    closestDistance = distance;
-                    closest16BitColor = lut[j].key;
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    minIndex = j;
                 }
             }
 
-            colors16Bit[i] = closest16BitColor;
-        }
-
-        console.log("24 bit colours | 16 bit colors");
-        for (var i = 0; i < colors24Bit.length; i++) {
-            console.log(colors24Bit[i] + " | " + colors16Bit[i]);
+            colors16Bit[i] = lut[minIndex];
         }
 
         this.colorsTransformed.notify(colors16Bit);
@@ -93,36 +107,39 @@ Model.prototype = {
         return colors16Bit; //TODO: For testing purposes, keep?
     },
 
-    applyColorQuantisation: function(image, context, numberOfBins) {
-        var pixelCount = 0;
-        var pixelColours = new Array(image.width * image.height);
-        for (var i = 0; i < pixelColours.length; i++) {
-            pixelColours[i] = new Array(3);
+    applyColorQuantisation: function(colors24Bit, inputBits, outputBits) {
+        var lut = this.generateLut(inputBits, outputBits);
+
+        var colors16Bit = [];
+        for(var i = 0; i < lut.length; i++) {
+            colors16Bit[i] = {
+                key: lut[i],
+                value: 0
+            };
         }
 
-        for (var x = 0; x < image.width; x++) {
-            for (var y = 0; y < image.height; y++) {
-                var pixelData = context.getImageData(x, y, 1, 1).data;
-                pixelColours[pixelCount][0] = pixelData[0];
-                pixelColours[pixelCount][1] = pixelData[1];
-                pixelColours[pixelCount][2] = pixelData[2];
-                pixelCount++;
+        // For each colour in the image, find it's 16-bit equivalent
+        for(var i = 0; i < colors24Bit.length; i++) {
+            var minDistance = Math.sqrt(3); // TODO: Generalise/explain?
+            var minIndex = null;
+
+            // Iterate over lut, finding entry that is cloest to 24-bit colour
+            for(var j = 0; j < lut.length; j++) {
+                var rDiff = colors24Bit[i].r - lut[j].r;
+                var gDiff = colors24Bit[i].g - lut[j].g;
+                var bDiff = colors24Bit[i].b - lut[j].b;
+                var distance = Math.sqrt(Math.pow(rDiff, 2) + Math.pow(gDiff, 2) + Math.pow(bDiff, 2));
+
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    minIndex = j;
+                }
             }
+
+            colors16Bit[minIndex].value += 1;
         }
 
-        var quantisedColors = new Array(pixelColours.length);
-        for (var i = 0; i < quantisedColors.length; i++) {
-            quantisedColors[i] = new Array(3);
-        }
-
-        for (var i = 0; i < pixelColours.length; i++) {
-            // Iterate over the red, green, and blue channels
-            for (var j = 0; j < 3; j++) {
-                var rawColor = pixelColours[i][j];
-                quantisedColors[i][j] = Math.floor(rawColor / numberOfBins);
-            }
-        }
-
-        return quantisedColors;
+        this.colorsTransformed.notify(colors16Bit);
+        return colors16Bit; //TODO: For testing purposes, keep?
     }
 };
