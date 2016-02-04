@@ -1,4 +1,4 @@
-//*** Tests for the Exception object ***
+QUnit.module("ExceptionTests");
 
 QUnit.test("testExceptionErrorMessage", function(assert) {
     var newException = new Exception("Exception message");
@@ -14,8 +14,9 @@ QUnit.test("testExceptionThrowing", function(assert) {
     )
 });
 
+// *****
 
-//*** Tests for the CustomEvent object ***
+QUnit.module("CustomEventTests");
 
 QUnit.test("testCustomEventNotifiesOneListener", function(assert) {
     var eventHeard = false;
@@ -110,7 +111,9 @@ QUnit.test("testCustomEventWithArguments", function(assert) {
     assert.equal("Hello World", dataRecieved);
 });
 
-//*** Tests for the ColorRGB object ***
+// *****
+
+QUnit.module("ColorRGBTests");
 
 QUnit.test("testColorRGBWithCorrectParameters", function(assert) {
     var newColor = new ColorRGB(1.0, 0.0, 0.0);
@@ -127,7 +130,7 @@ QUnit.test("testColorRGBWithOutOfRangeParameters", function(assert) {
         [ 0.0,  0.0, -1.0],
         [ 2.0,  0.0,  0.0],
         [ 0.0,  2.0,  0.0],
-        [ 0.0,  0.0,  2.0],
+        [ 0.0,  0.0,  2.0]
     ];
 
     for (var i = 0; i < erroneousColors.length; i++) {
@@ -164,5 +167,5 @@ QUnit.test("testColorRGBWithTooFewParameters", function(assert) {
 QUnit.test("testColorRGBtoString", function(assert) {
     var newColor = new ColorRGB(1.0, 0.5, 0.0);
 
-    assert.equal(newColor.toString(), "(1, 0.5, 0)"); // Note that floats are printed out as ints if .0
+    assert.equal(newColor.toString(), "(1, 0.5, 0)");
 });
