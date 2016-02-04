@@ -31,7 +31,7 @@ function View(model, elements) {
     this._elements.imageUploadButton.change(function(e) {
         var file = e.target.files[0];
         if (file) {
-            _this.imageUploaded.notify(e.target.files[0]);
+            _this.imageUploaded.notify(file);
         }
     });
 
