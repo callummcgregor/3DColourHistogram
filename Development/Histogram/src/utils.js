@@ -48,15 +48,13 @@ CustomEvent.prototype = {
  * @param assert An instance of assert, allowing assertions to be made in this function
  * @param actual The actual value
  * @param expected The expected value
- * @param tolerancePercentage The percentage of the actual value by which the expected value can be higher or lower
+ * @param tolerance The percentage of the actual value by which the expected value can be higher or lower
  */
-function assertClose(assert, actual, expected, tolerancePercentage) {
-    toleranceValue = actual * tolerancePercentage;
-
-    if(actual + toleranceValue >= expected && actual - toleranceValue <= expected) {
-        assert.equal(true, true);
+function assertClose(assert, actual, expected, tolerance, message) {
+    if(actual + tolerance >= expected && actual - tolerance <= expected) {
+        assert.equal(true, true, message);
     } else {
-        assert.equal(false, true, "Actual value not within tolerance of expected value");
+        assert.equal(false, true, message + "... " + "actual: " + actual + " not within " + tolerance + " of expected: " + expected);
     }
 }
 

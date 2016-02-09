@@ -9,7 +9,7 @@ function Model() {
     this._labColours = null;
 
     this.imageSaved = new CustomEvent(this);
-    this.colorsExtracted = new CustomEvent(this);
+    //this.colorsExtracted = new CustomEvent(this);
     this.colorsTransformed = new CustomEvent(this);
 }
 
@@ -28,7 +28,6 @@ Model.prototype = {
     },
 
     extractColors: function(context) {
-        console.log(context);
         var width = context.canvas.width;
         var height = context.canvas.height;
         var colors = new Array(width * height);
@@ -48,12 +47,14 @@ Model.prototype = {
         this._sRGBColors = colors;
 
         console.log(this._sRGBColors.length + " colours extracted");
-        this.colorsExtracted.notify(this._sRGBColors);
+
+        this.applyColorQuantisation(this._sRGBColors, 256, 16);
+        //this.colorsExtracted.notify(this._sRGBColors);
     },
 
     /**
      * Generates a look-up table (lut) of from-bit colours to to-bit colours (e.g. 24-bit to 16-bit)
-     * Note: 24-bit colours are a misnomer and have 256 denominations, unlike 8-bit or 16-bit colours
+     * Note: 24-bit colour is a misnomer and have 256 denominations, unlike 8-bit or 16-bit colours
      *  which have 8 or 16 denominations respectively
      *
      * @param from The number of denominations of the input colours
@@ -61,54 +62,25 @@ Model.prototype = {
      * @returns {Array} A look-up table of to-bit colour equivalents in the from-bit coordinates
      */
     generateLut: function(from, to) {
-        fromMax = from - 1;
-        toMax = to - 1;
-        ratio = fromMax / toMax;
+        oldMax = from - 1;
+        newMax = to - 1;
+        scaleFactor = oldMax / newMax;
 
         var lut = [];
 
         for(var i = 0; i < (to*to*to); i++) {
             lut[i] = new ColorRGB(
-                ((i%to) * ratio)/fromMax,
-                ((Math.floor(i/to)%to) * ratio)/fromMax,
-                ((Math.floor(i/(to*to))) * ratio)/fromMax);
+                ((i%to) * scaleFactor) / oldMax,
+                ((Math.floor(i/to)%to) * scaleFactor) / oldMax,
+                ((Math.floor(i/(to*to))) * scaleFactor) / oldMax);
         }
 
         return lut;
     },
 
-    transform24BitTo16Bit: function(colors24Bit) {
-        var lut = this.generateLut(256, 16);
-
-        var colors16Bit = [];
-
-        // For each colour in the image, find it's 16-bit equivalent
-        for(var i = 0; i < colors24Bit.length; i++) {
-            var minDistance = Math.sqrt(3); // TODO: Generalise/explain?
-            var minIndex = null;
-
-            // Iterate over lut, finding entry that is cloest to 24-bit colour
-            for(var j = 0; j < lut.length; j++) {
-                var rDiff = colors24Bit[i].r - lut[j].r;
-                var gDiff = colors24Bit[i].g - lut[j].g;
-                var bDiff = colors24Bit[i].b - lut[j].b;
-                var distance = Math.sqrt(Math.pow(rDiff, 2) + Math.pow(gDiff, 2) + Math.pow(bDiff, 2));
-                if (distance < minDistance) {
-                    minDistance = distance;
-                    minIndex = j;
-                }
-            }
-
-            colors16Bit[i] = lut[minIndex];
-        }
-
-        this.colorsTransformed.notify(colors16Bit);
-
-        return colors16Bit; //TODO: For testing purposes, keep?
-    },
-
-    applyColorQuantisation: function(colors24Bit, inputBits, outputBits) {
-        var lut = this.generateLut(inputBits, outputBits);
+    applyColorQuantisation: function(inputColors, inputNoOfBits, outputNoOfBits) {
+        console.log("Applying colour quantisation...");
+        var lut = this.generateLut(inputNoOfBits, outputNoOfBits);
 
         var colors16Bit = [];
         for(var i = 0; i < lut.length; i++) {
@@ -119,15 +91,15 @@ Model.prototype = {
         }
 
         // For each colour in the image, find it's 16-bit equivalent
-        for(var i = 0; i < colors24Bit.length; i++) {
-            var minDistance = Math.sqrt(3); // TODO: Generalise/explain?
-            var minIndex = null;
+        for(var i = 0; i < inputColors.length; i++) {
+            var minDistance = 2; // A value outside ranges of the 0-1 cube (i.e. larger than Math.sqrt(3))
+            var minIndex = null; // Index of the 16-bit value in the LUT equivalent to the 24-bit input value
 
-            // Iterate over lut, finding entry that is cloest to 24-bit colour
+            // Iterate over lut, finding entry that is closest to 24-bit colour
             for(var j = 0; j < lut.length; j++) {
-                var rDiff = colors24Bit[i].r - lut[j].r;
-                var gDiff = colors24Bit[i].g - lut[j].g;
-                var bDiff = colors24Bit[i].b - lut[j].b;
+                var rDiff = inputColors[i].r - lut[j].r;
+                var gDiff = inputColors[i].g - lut[j].g;
+                var bDiff = inputColors[i].b - lut[j].b;
                 var distance = Math.sqrt(Math.pow(rDiff, 2) + Math.pow(gDiff, 2) + Math.pow(bDiff, 2));
 
                 if (distance < minDistance) {

@@ -20,9 +20,9 @@ function View(model, elements) {
         _this.displayImage(args);
     });
 
-    this._model.colorsExtracted.attach(function(sender, args) {
-        _this.plotColors(args);
-    });
+    //this._model.colorsExtracted.attach(function(sender, args) {
+    //    _this.plotColors(args);
+    //});
 
     this._model.colorsTransformed.attach(function(sender, args) {
         _this.plotColors(args);
@@ -129,7 +129,8 @@ View.prototype = {
     plotColors: function(colors) {
         var pointGeometry, pointMaterial, pointMesh;
         var combinedGeometry, combinedMaterial, combinedMesh;
-        var sphereRadius = 0.1;
+        var maxSphereRadius = 0.1;
+        var minSphereRadius = 0.01;
         var meshes = [];
 
         // Remove previous colour plots from the scene
@@ -139,18 +140,39 @@ View.prototype = {
             }
         }
 
-        for (var i = 0; i < colors.length; i += 100) {
-            pointGeometry = new THREE.SphereGeometry(sphereRadius);
-            pointMaterial = new THREE.MeshBasicMaterial(); // Changes made to this material will have no effect on the objects
-            pointMesh = new THREE.Mesh(pointGeometry, pointMaterial);
+        // Find largest value in colors
+        var maxValue = 0;
+        var minValue = 1000000000; // TODO: not sustainable
+        for (var i = 0; i < colors.length; i++) {
+            if (colors[i].value > maxValue) {
+                maxValue = colors[i].value;
+            }
+            if (colors[i].value < minValue || colors[i].value > 0) {
+                minValue = colors[i].value;
+            }
+        }
+        console.log("Max value: " + maxValue);
+        console.log("Min value: " + minValue);
 
-            var position = this.findPositionOfColor(colors[i]);
+        for (var i = 0; i < colors.length; i++) {
+            if (colors[i].value > 0) { // Only plot colours with a count > 0
+                var percentageOfMaxValue = colors[i].value / maxValue; // In range 0 - 1
+                var sphereRadius = percentageOfMaxValue * maxSphereRadius;
+                if (sphereRadius < minSphereRadius) {
+                    sphereRadius = minSphereRadius;
+                }
+                pointGeometry = new THREE.SphereGeometry(sphereRadius);
+                pointMaterial = new THREE.MeshBasicMaterial(); // Changes made to this material will have no effect on the objects
+                pointMesh = new THREE.Mesh(pointGeometry, pointMaterial);
 
-            pointMesh.position.x = position.x; // This works, but pointMesh.position = position does not
-            pointMesh.position.y = position.y;
-            pointMesh.position.z = position.z;
+                var position = this.findPositionOfColor(colors[i].key);
 
-            meshes.push(pointMesh);
+                pointMesh.position.x = position.x; // This works, but pointMesh.position = position does not
+                pointMesh.position.y = position.y;
+                pointMesh.position.z = position.z;
+
+                meshes.push(pointMesh);
+            }
         }
 
         combinedGeometry = this.mergeMeshes(meshes);

@@ -20,7 +20,7 @@ function Controller(model, view) {
     });
 
     this._view.constructLutButtonPressed.attach(function() {
-        _this._model.transform24BitTo16Bit();
+        //_this._model.transform24BitTo16Bit();
     })
 }
 
