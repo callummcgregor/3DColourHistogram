@@ -48,42 +48,90 @@ CustomEvent.prototype = {
  * @param assert An instance of assert, allowing assertions to be made in this function
  * @param actual The actual value
  * @param expected The expected value
- * @param tolerance The percentage of the actual value by which the expected value can be higher or lower
+ * @param tolerance The percentage of the actual value by which the expected value can be higher or lower (0-1)
+ * @param message The message displayed if the test fails
  */
 function assertClose(assert, actual, expected, tolerance, message) {
-    if(actual + tolerance >= expected && actual - tolerance <= expected) {
+    var toleranceValue = Math.abs(tolerance * expected);
+
+    if(actual + toleranceValue >= expected && actual - toleranceValue <= expected) {
         assert.equal(true, true, message);
     } else {
-        assert.equal(false, true, message + "... " + "actual: " + actual + " not within " + tolerance + " of expected: " + expected);
+        assert.equal(false, true, message + "... " + "actual: " + actual + " not within " + tolerance*100 + "% of expected: " + expected);
     }
 }
 
 /**
- * Object for representing an RGB 24-bit colour
- * Values given and stored in the ranges 0-255
- *
- * @param red
- * @param green
- * @param blue
+ * Object for representing a colour
  */
-function ColorRGB(red, green, blue) {
-    this.r = null;
-    this.g = null;
-    this.b = null;
-
-    if (red < 0 || red > 1 || green < 0 || green > 1 || blue < 0 || blue > 1) {
-        throw new Exception("Inputted value outside range 0-1 (inclusive)"); // TODO: Give erroneous values
-    } else if (red == undefined || green == undefined || blue == undefined) {
-        throw new Exception("Too few parameters recieved, please supply a red, green, and blue value");
-    } else {
-        this.r = red;
-        this.g = green;
-        this.b = blue;
-    }
+function Color() {
+    this.rgb = null;
+    this.lab = null;
 }
 
-ColorRGB.prototype = {
-    toString: function() {
-        return "(" + this.r + ", " + this.g + ", " + this.b + ")";
+Color.prototype = {
+    /**
+     * Set the Color's RGB values
+     * @param r red value in range 0-1
+     * @param g green value in range 0-1
+     * @param b blue value in range 0-1
+     */
+    setRGB: function(r, g, b) {
+        if (r < 0.0 || r > 1.0 || g < 0.0 || g > 1.0 || b < 0.0 || b > 1.0) {
+            throw new Exception("Inputted values must be in range 0-1 (inclusive)"); // TODO: Give erroneous values
+        } else {
+            this.rgb = {
+                r: r,
+                g: g,
+                b: b
+            }
+        }
+    },
+
+    /**
+     * Calculate the sRGB's CIE-Lab equivalent
+     */
+    calculateLab: function() {
+        console.log("Converting sRGB colours to CIE-L*a*b*");
+
+        // First convert sRGB to CIE-XYZ
+        var varR = this.rgbToXyzHelper(this.rgb.r) * 100;
+        var varG = this.rgbToXyzHelper(this.rgb.g) * 100;
+        var varB = this.rgbToXyzHelper(this.rgb.b) * 100;
+
+        var xyz = {
+            X: (varR * 0.4124) + (varG * 0.3576) + (varB * 0.1805),
+            Y: (varR * 0.2126) + (varG * 0.7152) + (varB * 0.0722),
+            Z: (varR * 0.0193) + (varG * 0.1192) + (varB * 0.9505)
+        };
+
+        // Then convert CIE-XYZ to CIE-Lab
+        var varX = this.xyzToLabHelper(xyz.X /  95.047);
+        var varY = this.xyzToLabHelper(xyz.Y / 100.000);
+        var varZ = this.xyzToLabHelper(xyz.Z / 108.883);
+
+        this.lab = {
+            l: (116 * varY) - 16,
+            a: 500 * (varX - varY),
+            b: 200 * (varY - varZ)
+        };
+    },
+
+    rgbToXyzHelper: function(channel) {
+        if (channel > 0.04045) {
+            channel = Math.pow((channel + 0.055) / 1.055, 2.4)
+        } else {
+            channel = channel / 12.92
+        }
+        return channel
+    },
+
+    xyzToLabHelper: function(channel) {
+        if (channel > 0.00856) {
+            return Math.pow(channel, 1/3);
+        } else {
+            return (7.787 * channel) + (16/116);
+        }
     }
 };
+

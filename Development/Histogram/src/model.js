@@ -5,15 +5,19 @@
  */
 function Model() {
     this._image = null;
-    this._sRGBColors = null;
-    this._labColours = null;
-
-    this.imageSaved = new CustomEvent(this);
-    //this.colorsExtracted = new CustomEvent(this);
-    this.colorsTransformed = new CustomEvent(this);
+    this._colors = null;
+    this._currentColorSpace = "srgb";
+    this.imageReady = new CustomEvent(this);
+    this.sRGBColorsReady = new CustomEvent(this);
+    this.labColorsReady = new CustomEvent(this);
 }
 
 Model.prototype = {
+    /**
+     * Save the raw image file
+     *
+     * @param imageFile The raw image file to be saved
+     */
     saveImage: function(imageFile) {
         var image = new Image();
 
@@ -21,12 +25,46 @@ Model.prototype = {
 
         image.onload = function() {
             _this._image = image;
-            _this.imageSaved.notify(image);
+            _this.imageReady.notify(image);
         };
 
-        image.src = URL.createObjectURL(imageFile); // Let this go to prevent memory leaks
+        image.src = URL.createObjectURL(imageFile); // TODO: Let this go to prevent memory leaks
     },
 
+    /**
+     * Takes the image context (from the HTML5 canvas element), extracts the colours and converts them into
+     *  and appropriate bit size
+     *
+     * @param context The image context (from the HTML5 canvas element)
+     */
+    parseImage: function(context) {
+        var sRGBColors24Bit = this.extractColors(context); // TODO: How to detect the bit
+        this._colors = sRGBColors24Bit; // Save colours in original bit size as to not loose resolution unnecessarily
+
+        var sRGBColors16Bit = this.applyColorQuantisation(sRGBColors24Bit, 256, 16);
+        this.sRGBColorsReady.notify(sRGBColors16Bit);
+    },
+
+    changeColorSpace: function(newColorSpace) {
+        if (newColorSpace != this._currentColorSpace) {
+            if (newColorSpace == "srgb") {
+                this.sRGBColorsReady.notify(this._colors);
+            } else if (newColorSpace == "cie-lab") {
+                if (this._labColors == null) {
+                    this.convertRGBToLab();
+                }
+                this.labColorsReady.notify(this._labColors);
+            }
+        }
+    },
+
+    /**
+     * Iterate over the pixels in the image context and extract the RGB values (presumed to be 24-bit),
+     *  returning them as an array
+     *
+     * @param context The image context from the HTML5 canvas element
+     * @returns {Array} An array of the RGB values from each pixel in the image
+     */
     extractColors: function(context) {
         var width = context.canvas.width;
         var height = context.canvas.height;
@@ -37,19 +75,15 @@ Model.prototype = {
         for(var y = 0; y < height; y++) { // Traverses row by row
             for(var x = 0; x < width; x++) {
                 var imageData = context.getImageData(x, y, 1, 1).data;
-                var color = new ColorRGB(imageData[0]/255, imageData[1]/255, imageData[2]/255);
+                var color = new Color;
+                color.setRGB(imageData[0]/255, imageData[1]/255, imageData[2]/255);
                 colors[count] = color;
                 count++;
             }
         }
-        console.log("Colours extracted.");
+        console.log(colors.length + " non-unique colours extracted");
 
-        this._sRGBColors = colors;
-
-        console.log(this._sRGBColors.length + " colours extracted");
-
-        this.applyColorQuantisation(this._sRGBColors, 256, 16);
-        //this.colorsExtracted.notify(this._sRGBColors);
+        return colors;
     },
 
     /**
@@ -69,15 +103,25 @@ Model.prototype = {
         var lut = [];
 
         for(var i = 0; i < (to*to*to); i++) {
-            lut[i] = new ColorRGB(
+             var newColor = new Color;
+            newColor.setRGB(
                 ((i%to) * scaleFactor) / oldMax,
                 ((Math.floor(i/to)%to) * scaleFactor) / oldMax,
                 ((Math.floor(i/(to*to))) * scaleFactor) / oldMax);
+            lut[i] = newColor;
         }
 
         return lut;
     },
 
+    /**
+     * Convert an array of Color objects from the input bits to output bits (e.g. 24-bit to 16-bit color)
+     *
+     * @param inputColors An array of Color objects
+     * @param inputNoOfBits The bits of the input colours (e.g. 24)
+     * @param outputNoOfBits The desired bits of the output colours (e.g. 16)
+     * @returns {Array} The converted input Color objects
+     */
     applyColorQuantisation: function(inputColors, inputNoOfBits, outputNoOfBits) {
         console.log("Applying colour quantisation...");
         var lut = this.generateLut(inputNoOfBits, outputNoOfBits);
@@ -97,9 +141,9 @@ Model.prototype = {
 
             // Iterate over lut, finding entry that is closest to 24-bit colour
             for(var j = 0; j < lut.length; j++) {
-                var rDiff = inputColors[i].r - lut[j].r;
-                var gDiff = inputColors[i].g - lut[j].g;
-                var bDiff = inputColors[i].b - lut[j].b;
+                var rDiff = inputColors[i].rgb.r - lut[j].rgb.r;
+                var gDiff = inputColors[i].rgb.g - lut[j].rgb.g;
+                var bDiff = inputColors[i].rgb.b - lut[j].rgb.b;
                 var distance = Math.sqrt(Math.pow(rDiff, 2) + Math.pow(gDiff, 2) + Math.pow(bDiff, 2));
 
                 if (distance < minDistance) {
@@ -111,7 +155,6 @@ Model.prototype = {
             colors16Bit[minIndex].value += 1;
         }
 
-        this.colorsTransformed.notify(colors16Bit);
         return colors16Bit; //TODO: For testing purposes, keep?
     }
 };

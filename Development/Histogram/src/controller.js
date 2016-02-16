@@ -11,25 +11,18 @@ function Controller(model, view) {
     var _this = this;
 
     // Attach view listeners
+    // When the image is uploaded, send the raw image file to the model to be saved
     this._view.imageUploaded.attach(function(sender, args) {
-        _this.processImage(args);
+        _this._model.saveImage(args);
     });
 
+    // When the image has been displayed by the view, send the context (i.e. the array of pixels extracted
+    //  by HTML5 Canvas element) to the model for the colours to be parsed
     this._view.imageDisplayed.attach(function(sender, args) {
-       _this.extractColors(args);
+       _this._model.parseImage(args);
     });
 
-    this._view.constructLutButtonPressed.attach(function() {
-        //_this._model.transform24BitTo16Bit();
-    })
+    this._view.colorSpaceChanged.attach(function(sender, args) {
+        _this._model.changeColorSpace(args);
+    });
 }
-
-Controller.prototype = {
-    processImage: function(imageFile) {
-        this._model.saveImage(imageFile);
-    },
-
-    extractColors: function(context) {
-        this._model.extractColors(context);
-    }
-};

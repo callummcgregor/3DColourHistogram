@@ -36,7 +36,8 @@
     <!-- HTML Elements start here !-->
     <div id="input_section">
         <input type="file" id="file_input">
-        <button id="constructLut">Construct LUT</button>
+        <input type="radio" name="color_space" value="srgb" checked>sRGB
+        <input type="radio" name="color_space" value="cie-lab">CIE-Lab
     </div>
     <div id="image_holder">
         <canvas id="image_canvas" width="200" height="200"></canvas>

@@ -2,7 +2,7 @@
  * Created by callum on 27/01/2016.
  */
 
-QUnit.module('ModelTests', {
+QUnit.module('Model Tests', {
     setup: function() {
         this.model = new Model();
     },
@@ -12,16 +12,16 @@ QUnit.module('ModelTests', {
 });
 
 // TODO: Currently untestable
-    QUnit.test("testSaveImage", function(assert) {
+    QUnit.test("Test saveImage", function(assert) {
     assert.equal(true, true);
 });
 
 // TODO: Currently untestable
-QUnit.test("testExtractColors", function(assert) {
+QUnit.test("Test extractColors", function(assert) {
     assert.equal(true, true);
 });
 
-QUnit.test("testGenerateLut", function(assert) {
+QUnit.test("Test generateLut", function(assert) {
     var from = 256;
     var to = 16;
     var lut = this.model.generateLut(from, to);
@@ -47,9 +47,9 @@ QUnit.test("testGenerateLut", function(assert) {
     ];
 
     for(var i = 0; i < testValues.length; i++) {
-        assertClose(assert, lut[testValues[i][0]].r, testValues[i][1][0], tolerance, testValues[i][0]);
-        assertClose(assert, lut[testValues[i][0]].g, testValues[i][1][1], tolerance, testValues[i][0]);
-        assertClose(assert, lut[testValues[i][0]].b, testValues[i][1][2], tolerance, testValues[i][0]);
+        assertClose(assert, lut[testValues[i][0]].rgb.r, testValues[i][1][0], tolerance, testValues[i][0]);
+        assertClose(assert, lut[testValues[i][0]].rgb.g, testValues[i][1][1], tolerance, testValues[i][0]);
+        assertClose(assert, lut[testValues[i][0]].rgb.b, testValues[i][1][2], tolerance, testValues[i][0]);
     }
 
     //for(var i = 0; i < to; i++) {
@@ -63,7 +63,7 @@ QUnit.test("testGenerateLut", function(assert) {
     //}
 });
 
-QUnit.test("testApplyColorQuantisationValues", function(assert) {
+QUnit.test("Test applyColorQuantisation", function(assert) {
     var from = 256;
     var fromMax = from - 1;
     var to = 16;
@@ -71,7 +71,9 @@ QUnit.test("testApplyColorQuantisationValues", function(assert) {
     var inputColors = [];
     // Grey-scale diagonal
     for(var i = 0; i < from; i++) {
-        inputColors[i] = new ColorRGB(i / fromMax, i / fromMax, i / fromMax);
+        var newColor = new Color();
+        newColor.setRGB(i / fromMax, i / fromMax, i / fromMax);
+        inputColors[i] = newColor;
     }
     var colors16Bit = this.model.applyColorQuantisation(inputColors, from, to);
 

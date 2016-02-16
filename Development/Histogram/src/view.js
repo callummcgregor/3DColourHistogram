@@ -11,21 +11,17 @@ function View(model, elements) {
 
     this.imageUploaded = new CustomEvent(this);
     this.imageDisplayed = new CustomEvent(this);
-    this.constructLutButtonPressed = new CustomEvent(this);
+    this.colorSpaceChanged = new CustomEvent(this);
 
     var _this = this;
 
     // Listeners on the model
-    this._model.imageSaved.attach(function(sender, args) {
+    this._model.imageReady.attach(function(sender, args) {
         _this.displayImage(args);
     });
 
-    //this._model.colorsExtracted.attach(function(sender, args) {
-    //    _this.plotColors(args);
-    //});
-
-    this._model.colorsTransformed.attach(function(sender, args) {
-        _this.plotColors(args);
+    this._model.sRGBColorsReady.attach(function(sender, args) {
+        _this.plotRGBColors(args);
     });
 
     this._elements.imageUploadButton.change(function(e) {
@@ -35,8 +31,9 @@ function View(model, elements) {
         }
     });
 
-    this._elements.constructLutButton.click(function() {
-        _this.constructLutButtonPressed.notify();
+    this._elements.colorSpaceRadio.change(function(e) {
+        console.log("Colour space changed to " + e.target.value);
+        _this.colorSpaceChanged.notify(e.target.value);
     });
 }
 
@@ -71,7 +68,8 @@ View.prototype = {
         var canvas = $("#histogram_holder");
         canvas.append(this._world.renderer.domElement);
 
-        this.createWireframeCube();
+        this.createRGBWireframeCube();
+        //this.createRGBWireframeCube();
         this.render();
     },
 
@@ -83,54 +81,91 @@ View.prototype = {
      *
      * @param world The world in which the wireframe cube is drawn
      */
-    createWireframeCube: function() {
+    createRGBWireframeCube: function() {
         var material = new THREE.LineBasicMaterial( {
             vertexColors: THREE.VertexColors
         } );
 
         var sidesGeometry = new THREE.Geometry();
-        sidesGeometry.vertices.push( new THREE.Vector3( -0.5, -0.5, -0.5 ) ); // Black
-        sidesGeometry.vertices.push( new THREE.Vector3( -0.5,  0.5, -0.5 ) ); // Green
-        sidesGeometry.vertices.push( new THREE.Vector3( -0.5,  0.5,  0.5 ) ); // Cyan
-        sidesGeometry.vertices.push( new THREE.Vector3( -0.5, -0.5,  0.5 ) ); // Blue
-        sidesGeometry.vertices.push( new THREE.Vector3( -0.5, -0.5, -0.5 ) ); // Black
-        sidesGeometry.vertices.push( new THREE.Vector3(  0.5, -0.5, -0.5 ) ); // Red
-        sidesGeometry.vertices.push( new THREE.Vector3(  0.5,  0.5, -0.5 ) ); // Yellow
-        sidesGeometry.vertices.push( new THREE.Vector3(  0.5,  0.5,  0.5 ) ); // White
-        sidesGeometry.vertices.push( new THREE.Vector3(  0.5, -0.5,  0.5 ) ); // Magenta
-        sidesGeometry.vertices.push( new THREE.Vector3(  0.5, -0.5, -0.5 ) ); // Red
+        sidesGeometry.vertices.push(new THREE.Vector3(-0.5, -0.5, -0.5)); // Black
+        sidesGeometry.vertices.push(new THREE.Vector3(-0.5,  0.5, -0.5)); // Green
+        sidesGeometry.vertices.push(new THREE.Vector3(-0.5,  0.5,  0.5)); // Cyan
+        sidesGeometry.vertices.push(new THREE.Vector3(-0.5, -0.5,  0.5)); // Blue
+        sidesGeometry.vertices.push(new THREE.Vector3(-0.5, -0.5, -0.5)); // Black
+        sidesGeometry.vertices.push(new THREE.Vector3( 0.5, -0.5, -0.5)); // Red
+        sidesGeometry.vertices.push(new THREE.Vector3( 0.5,  0.5, -0.5)); // Yellow
+        sidesGeometry.vertices.push(new THREE.Vector3( 0.5,  0.5,  0.5)); // White
+        sidesGeometry.vertices.push(new THREE.Vector3( 0.5, -0.5,  0.5)); // Magenta
+        sidesGeometry.vertices.push(new THREE.Vector3( 0.5, -0.5, -0.5)); // Red
 
         sidesGeometry = this.colourGeometryVerticesByPosition( sidesGeometry );
 
         var sides = new THREE.Line( sidesGeometry, material );
 
         var connectingEdgesGeometry = new THREE.Geometry();
-        connectingEdgesGeometry.vertices.push( new THREE.Vector3 (  0.5,  0.5, -0.5 ) ); // Yellow
-        connectingEdgesGeometry.vertices.push( new THREE.Vector3 ( -0.5,  0.5, -0.5 ) ); // Green
-        connectingEdgesGeometry.vertices.push( new THREE.Vector3 (  0.5,  0.5,  0.5 ) ); // White
-        connectingEdgesGeometry.vertices.push( new THREE.Vector3 ( -0.5,  0.5,  0.5 ) ); // Cyan
-        connectingEdgesGeometry.vertices.push( new THREE.Vector3 (  0.5, -0.5,  0.5 ) ); // Magenta
-        connectingEdgesGeometry.vertices.push( new THREE.Vector3 ( -0.5, -0.5,  0.5 ) ); // Blue
+        connectingEdgesGeometry.vertices.push(new THREE.Vector3( 0.5,  0.5, -0.5)); // Yellow
+        connectingEdgesGeometry.vertices.push(new THREE.Vector3(-0.5,  0.5, -0.5)); // Green
+        connectingEdgesGeometry.vertices.push(new THREE.Vector3( 0.5,  0.5,  0.5)); // White
+        connectingEdgesGeometry.vertices.push(new THREE.Vector3(-0.5,  0.5,  0.5)); // Cyan
+        connectingEdgesGeometry.vertices.push(new THREE.Vector3( 0.5, -0.5,  0.5)); // Magenta
+        connectingEdgesGeometry.vertices.push(new THREE.Vector3(-0.5, -0.5,  0.5)); // Blue
 
         connectingEdgesGeometry = this.colourGeometryVerticesByPosition( connectingEdgesGeometry );
 
-        var connectingEdges = new THREE.LineSegments( connectingEdgesGeometry, material );
+        var connectingEdges = new THREE.LineSegments(connectingEdgesGeometry, material);
 
-        this._world.scene.add( sides );
-        this._world.scene.add( connectingEdges );
+        this._world.scene.add(sides);
+        this._world.scene.add(connectingEdges);
+    },
+
+    createLabWireframeCube: function() {
+        var material = new THREE.LineBasicMaterial({
+            vertexColors: THREE.VertexColors
+        });
+
+        var sidesGeometry = new THREE.Geometry();
+        sidesGeometry.vertices.push(new THREE.Vector3(-0.5, -0.5, -0.5)); // Black
+        sidesGeometry.vertices.push(new THREE.Vector3(-0.5,  0.5, -0.5)); // Green
+        sidesGeometry.vertices.push(new THREE.Vector3(-0.5,  0.5,  0.5)); // Cyan
+        sidesGeometry.vertices.push(new THREE.Vector3(-0.5, -0.5,  0.5)); // Blue
+        sidesGeometry.vertices.push(new THREE.Vector3(-0.5, -0.5, -0.5)); // Black
+        sidesGeometry.vertices.push(new THREE.Vector3( 0.5, -0.5, -0.5)); // Red
+        sidesGeometry.vertices.push(new THREE.Vector3( 0.5,  0.5, -0.5)); // Yellow
+        sidesGeometry.vertices.push(new THREE.Vector3( 0.5,  0.5,  0.5)); // White
+        sidesGeometry.vertices.push(new THREE.Vector3( 0.5, -0.5,  0.5)); // Magenta
+        sidesGeometry.vertices.push(new THREE.Vector3( 0.5, -0.5, -0.5)); // Red
+
+        sidesGeometry = this.colourGeometryVerticesByPosition( sidesGeometry );
+
+        var sides = new THREE.Line( sidesGeometry, material );
+
+        var connectingEdgesGeometry = new THREE.Geometry();
+        connectingEdgesGeometry.vertices.push(new THREE.Vector3( 0.5,  0.5, -0.5)); // Yellow
+        connectingEdgesGeometry.vertices.push(new THREE.Vector3(-0.5,  0.5, -0.5)); // Green
+        connectingEdgesGeometry.vertices.push(new THREE.Vector3( 0.5,  0.5,  0.5)); // White
+        connectingEdgesGeometry.vertices.push(new THREE.Vector3(-0.5,  0.5,  0.5)); // Cyan
+        connectingEdgesGeometry.vertices.push(new THREE.Vector3( 0.5, -0.5,  0.5)); // Magenta
+        connectingEdgesGeometry.vertices.push(new THREE.Vector3(-0.5, -0.5,  0.5)); // Blue
+
+        connectingEdgesGeometry = this.colourGeometryVerticesByPosition( connectingEdgesGeometry );
+
+        var connectingEdges = new THREE.LineSegments(connectingEdgesGeometry, material);
+
+        this._world.scene.add(sides);
+        this._world.scene.add(connectingEdges);
     },
 
     /**
      * Takes in an array of colours and plots them in the unit cube, coloured appropriately.
      * Currently plots as constant radius spheres.
      *
-     * @param colors An array of THREE.Colors to plot
+     * @param colors A dictionary of Colors (the keys) and the number of that colour present (the values)
      */
-    plotColors: function(colors) {
+    plotRGBColors: function(colors) {
         var pointGeometry, pointMaterial, pointMesh;
         var combinedGeometry, combinedMaterial, combinedMesh;
         var maxSphereRadius = 0.1;
-        var minSphereRadius = 0.01;
+        var minSphereRadius = 0.001;
         var meshes = [];
 
         // Remove previous colour plots from the scene
@@ -147,25 +182,31 @@ View.prototype = {
             if (colors[i].value > maxValue) {
                 maxValue = colors[i].value;
             }
-            if (colors[i].value < minValue || colors[i].value > 0) {
+            if (colors[i].value < minValue) {
                 minValue = colors[i].value;
             }
+            // TODO: Prevent 0 value colours from being in this list
         }
         console.log("Max value: " + maxValue);
         console.log("Min value: " + minValue);
 
         for (var i = 0; i < colors.length; i++) {
-            if (colors[i].value > 0) { // Only plot colours with a count > 0
-                var percentageOfMaxValue = colors[i].value / maxValue; // In range 0 - 1
-                var sphereRadius = percentageOfMaxValue * maxSphereRadius;
+            if (colors[i].value > 0) {
+                // Uses ln(x+1) to scale large results down so they don't dwarf others
+                // x+1 ensures that y is always postive for x (i.e. when value = 1, ln != 0)
+                var scaledPercentageOfMaxValue = Math.log(colors[i].value + 1) / Math.log(maxValue + 1);
+                var sphereRadius = scaledPercentageOfMaxValue * maxSphereRadius;
+
+                // Ensure tiny ones are still visible
                 if (sphereRadius < minSphereRadius) {
                     sphereRadius = minSphereRadius;
                 }
+
                 pointGeometry = new THREE.SphereGeometry(sphereRadius);
                 pointMaterial = new THREE.MeshBasicMaterial(); // Changes made to this material will have no effect on the objects
                 pointMesh = new THREE.Mesh(pointGeometry, pointMaterial);
 
-                var position = this.findPositionOfColor(colors[i].key);
+                var position = this.findPositionOfRGBColor(colors[i].key.rgb);
 
                 pointMesh.position.x = position.x; // This works, but pointMesh.position = position does not
                 pointMesh.position.y = position.y;
@@ -184,7 +225,7 @@ View.prototype = {
 
         combinedMesh = new THREE.Mesh( combinedGeometry, combinedMaterial );
 
-        this._world.scene.add( combinedMesh );
+        this._world.scene.add(combinedMesh);
     },
 
     /**
@@ -224,7 +265,7 @@ View.prototype = {
      * @param color The colour to interpret as a position
      * @returns {THREE.Vector3} The inferred position of the given colour
      */
-    findPositionOfColor: function(color) {
+    findPositionOfRGBColor: function(color) {
         return new THREE.Vector3(color.r - 0.5, color.g - 0.5, color.b- 0.5); // .r/.g/.b have range 0-1
     },
 
@@ -254,7 +295,7 @@ View.prototype = {
         this._world.controls.update();
         this._world.renderer.render(this._world.scene, this._world.camera);
 
-        var _this = this; // TODO: Ensure this works
+        var _this = this;
         // Anom. function used because render() has parameters
         requestAnimationFrame( function() {
             _this.render();
