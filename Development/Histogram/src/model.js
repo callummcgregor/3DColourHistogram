@@ -50,10 +50,11 @@ Model.prototype = {
             if (newColorSpace == "srgb") {
                 this.sRGBColorsReady.notify(this._colors);
             } else if (newColorSpace == "cie-lab") {
-                if (this._labColors == null) {
-                    this.convertRGBToLab();
+                // Convert to CIE-L*a*b*
+                for (var i = 0; i < this._colors.length; i++) {
+                    this._colors[i].convertRgbToLab();
                 }
-                this.labColorsReady.notify(this._labColors);
+                this.labColorsReady.notify(this._colors);
             }
         }
     },
@@ -68,7 +69,7 @@ Model.prototype = {
     extractColors: function(context) {
         var width = context.canvas.width;
         var height = context.canvas.height;
-        var colors = new Array(width * height);
+        var colors = [];
 
         console.log("Extracting colours...");
         var count = 0;

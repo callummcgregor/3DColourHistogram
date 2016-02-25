@@ -24,6 +24,10 @@ function View(model, elements) {
         _this.plotRGBColors(args);
     });
 
+    this._model.labColorsReady.attach(function(sender, args) {
+        _this.plotLabColors(args);
+    });
+
     this._elements.imageUploadButton.change(function(e) {
         var file = e.target.files[0];
         if (file) {
@@ -68,8 +72,8 @@ View.prototype = {
         var canvas = $("#histogram_holder");
         canvas.append(this._world.renderer.domElement);
 
-        this.createRGBWireframeCube();
         //this.createRGBWireframeCube();
+        this.createLabWireframeCube();
         this.render();
     },
 
@@ -78,8 +82,6 @@ View.prototype = {
      *  the X, Y, and Z axis' respectively
      *
      * Note: Worth considering putting entire cube into a LineSegments geometry for the sake of performance
-     *
-     * @param world The world in which the wireframe cube is drawn
      */
     createRGBWireframeCube: function() {
         var material = new THREE.LineBasicMaterial( {
@@ -98,7 +100,7 @@ View.prototype = {
         sidesGeometry.vertices.push(new THREE.Vector3( 0.5, -0.5,  0.5)); // Magenta
         sidesGeometry.vertices.push(new THREE.Vector3( 0.5, -0.5, -0.5)); // Red
 
-        sidesGeometry = this.colourGeometryVerticesByPosition( sidesGeometry );
+        sidesGeometry = this.colourRGBGeometryVerticesByPosition( sidesGeometry );
 
         var sides = new THREE.Line( sidesGeometry, material );
 
@@ -110,7 +112,7 @@ View.prototype = {
         connectingEdgesGeometry.vertices.push(new THREE.Vector3( 0.5, -0.5,  0.5)); // Magenta
         connectingEdgesGeometry.vertices.push(new THREE.Vector3(-0.5, -0.5,  0.5)); // Blue
 
-        connectingEdgesGeometry = this.colourGeometryVerticesByPosition( connectingEdgesGeometry );
+        connectingEdgesGeometry = this.colourRGBGeometryVerticesByPosition( connectingEdgesGeometry );
 
         var connectingEdges = new THREE.LineSegments(connectingEdgesGeometry, material);
 
@@ -123,36 +125,30 @@ View.prototype = {
             vertexColors: THREE.VertexColors
         });
 
-        var sidesGeometry = new THREE.Geometry();
-        sidesGeometry.vertices.push(new THREE.Vector3(-0.5, -0.5, -0.5)); // Black
-        sidesGeometry.vertices.push(new THREE.Vector3(-0.5,  0.5, -0.5)); // Green
-        sidesGeometry.vertices.push(new THREE.Vector3(-0.5,  0.5,  0.5)); // Cyan
-        sidesGeometry.vertices.push(new THREE.Vector3(-0.5, -0.5,  0.5)); // Blue
-        sidesGeometry.vertices.push(new THREE.Vector3(-0.5, -0.5, -0.5)); // Black
-        sidesGeometry.vertices.push(new THREE.Vector3( 0.5, -0.5, -0.5)); // Red
-        sidesGeometry.vertices.push(new THREE.Vector3( 0.5,  0.5, -0.5)); // Yellow
-        sidesGeometry.vertices.push(new THREE.Vector3( 0.5,  0.5,  0.5)); // White
-        sidesGeometry.vertices.push(new THREE.Vector3( 0.5, -0.5,  0.5)); // Magenta
-        sidesGeometry.vertices.push(new THREE.Vector3( 0.5, -0.5, -0.5)); // Red
+        var lAxisGeometry = new THREE.Geometry();
+        lAxisGeometry.vertices.push(new THREE.Vector3(0.0, -0.5, 0.0)); // L = 0
+        lAxisGeometry.vertices.push(new THREE.Vector3(0.0,  0.5, 0.0)); // L = 100
+        lAxisGeometry = this.colourLabGeometryVerticesByPosition(lAxisGeometry);
+        lAxis = new THREE.Line(lAxisGeometry, material);
 
-        sidesGeometry = this.colourGeometryVerticesByPosition( sidesGeometry );
+        var aAxisGeometry = new THREE.Geometry();
+        aAxisGeometry.vertices.push(new THREE.Vector3(-0.5, 0.0, 0.0)); // a-
+        aAxisGeometry.vertices.push(new THREE.Vector3( 0.5, 0.0, 0.0)); // a+
+        aAxisGeometry = this.colourLabGeometryVerticesByPosition(aAxisGeometry);
+        aAxis = new THREE.Line(aAxisGeometry, material);
 
-        var sides = new THREE.Line( sidesGeometry, material );
+        var bAxisGeometry = new THREE.Geometry();
+        bAxisGeometry.vertices.push(new THREE.Vector3(0.0, 0.0, -0.5)); // b-
+        bAxisGeometry.vertices.push(new THREE.Vector3(0.0, 0.0,  0.5)); // b+
+        bAxisGeometry = this.colourLabGeometryVerticesByPosition(bAxisGeometry);
+        bAxis = new THREE.Line(bAxisGeometry, material);
 
-        var connectingEdgesGeometry = new THREE.Geometry();
-        connectingEdgesGeometry.vertices.push(new THREE.Vector3( 0.5,  0.5, -0.5)); // Yellow
-        connectingEdgesGeometry.vertices.push(new THREE.Vector3(-0.5,  0.5, -0.5)); // Green
-        connectingEdgesGeometry.vertices.push(new THREE.Vector3( 0.5,  0.5,  0.5)); // White
-        connectingEdgesGeometry.vertices.push(new THREE.Vector3(-0.5,  0.5,  0.5)); // Cyan
-        connectingEdgesGeometry.vertices.push(new THREE.Vector3( 0.5, -0.5,  0.5)); // Magenta
-        connectingEdgesGeometry.vertices.push(new THREE.Vector3(-0.5, -0.5,  0.5)); // Blue
+        console.log(lAxisGeometry.vertices);
+        console.log(lAxisGeometry.colors);
 
-        connectingEdgesGeometry = this.colourGeometryVerticesByPosition( connectingEdgesGeometry );
-
-        var connectingEdges = new THREE.LineSegments(connectingEdgesGeometry, material);
-
-        this._world.scene.add(sides);
-        this._world.scene.add(connectingEdges);
+        this._world.scene.add(lAxis);
+        this._world.scene.add(aAxis);
+        this._world.scene.add(bAxis);
     },
 
     /**
@@ -228,20 +224,102 @@ View.prototype = {
         this._world.scene.add(combinedMesh);
     },
 
+    plotLabColors: function(colors) {
+        var pointGeometry, pointMaterial, pointMesh;
+        var combinedGeometry, combinedMaterial, combinedMesh;
+        var maxSphereRadius = 0.1;
+        var minSphereRadius = 0.001;
+        var meshes = [];
+
+        // Remove previous colour plots from the scene
+        for(var i = this._world.scene.children.length - 1; i >= 0; i--) {
+            if (this._world.scene.children[i].type == "Mesh") { // Assuming colour plots are always of the type "Mesh"
+                this._world.scene.remove(this._world.scene.children[i]);
+            }
+        }
+
+        // Find largest value in colors
+        var maxValue = 0;
+        var minValue = 1000000000; // TODO: not sustainable
+        for (var i = 0; i < colors.length; i++) {
+            if (colors[i].value > maxValue) {
+                maxValue = colors[i].value;
+            }
+            if (colors[i].value < minValue) {
+                minValue = colors[i].value;
+            }
+            // TODO: Prevent 0 value colours from being in this list
+        }
+        console.log("Max value: " + maxValue);
+        console.log("Min value: " + minValue);
+
+        for (var i = 0; i < colors.length; i++) {
+            if (colors[i].value > 0) {
+                // Uses ln(x+1) to scale large results down so they don't dwarf others
+                // x+1 ensures that y is always postive for x (i.e. when value = 1, ln != 0)
+                var scaledPercentageOfMaxValue = Math.log(colors[i].value + 1) / Math.log(maxValue + 1);
+                var sphereRadius = scaledPercentageOfMaxValue * maxSphereRadius;
+
+                // Ensure tiny ones are still visible
+                if (sphereRadius < minSphereRadius) {
+                    sphereRadius = minSphereRadius;
+                }
+
+                pointGeometry = new THREE.SphereGeometry(sphereRadius);
+                pointMaterial = new THREE.MeshBasicMaterial(); // Changes made to this material will have no effect on the objects
+                pointMesh = new THREE.Mesh(pointGeometry, pointMaterial);
+
+                var position = this.findPositionOfRGBColor(colors[i].key.rgb);
+
+                pointMesh.position.x = position.x; // This works, but pointMesh.position = position does not
+                pointMesh.position.y = position.y;
+                pointMesh.position.z = position.z;
+
+                meshes.push(pointMesh);
+            }
+        }
+
+        combinedGeometry = this.mergeMeshes(meshes);
+        combinedMaterial = new THREE.ShaderMaterial( {
+            vertexShader: document.getElementById("vertexShader").textContent,
+            fragmentShader: document.getElementById("fragmentShader").textContent,
+            wireframe: true
+        } );
+
+        combinedMesh = new THREE.Mesh( combinedGeometry, combinedMaterial );
+
+        this._world.scene.add(combinedMesh);
+    },
+
     /**
      * Assign colour to the vertices of a geometry corresponding to their position relative to the (0.5, 0.5, 0.5) origin
      *
      * @param geometry The geometry to be coloured
      * @returns {*} The geometry once coloured
      */
-    colourGeometryVerticesByPosition: function(geometry) {
+    colourRGBGeometryVerticesByPosition: function(geometry) {
         var color, point;
 
         // Assign colours to each vertex corresponding to the position
-        for ( var i = 0; i < geometry.vertices.length; i++ ) {
-            point = geometry.vertices[ i ];
+        for (var i = 0; i < geometry.vertices.length; i++) {
+            point = geometry.vertices[i];
             color = new THREE.Color( 0xffffff );
-            color.set(this.findColourOfPosition(point));
+            color.set(this.findRGBColourOfPosition(point));
+            geometry.colors[i] = color; // use this array for convenience
+        }
+
+        return geometry;
+    },
+
+    colourLabGeometryVerticesByPosition: function(geometry) {
+        var color, point;
+
+        // Assign colours to each vertex corresponding to the position
+        for (var i = 0; i < geometry.vertices.length; i++) {
+            point = geometry.vertices[i];
+
+            color = new THREE.Color( 0xffffff );
+            color.set(this.findRgbColourOfLabPosition(point));
             geometry.colors[i] = color; // use this array for convenience
         }
 
@@ -249,13 +327,35 @@ View.prototype = {
     },
 
     /**
-     * Calculates and returns the colour of a point relative to the (0.5, 0.5, 0.5) origin
+     * Calculates and returns the RGB colour of a point relative to the (0.5, 0.5, 0.5) origin
      *
      * @param point
      * @returns {THREE.Color}
      */
-    findColourOfPosition: function(point) {
+    findRGBColourOfPosition: function(point) {
         return new THREE.Color(0.5 + point.x, 0.5 + point.y, 0.5 + point.z);
+    },
+
+    /**
+     * Calculates and returns the Lab colour of a point relative to the (0.5, 0.5, 0.5) origin
+     *
+     * @param point A 3D point in the CIE-L*a*b* space
+     * @returns {THREE.Color} The RGB equivalent of the point's colour in Lab space
+     */
+    findRgbColourOfLabPosition: function(point) {
+        var newColor = new Color();
+
+        console.log(point.y, point.x, point.z);
+        console.log((point.y + 0.5) * 100, point.x * 256, point.z * 256);
+
+        newColor.setLab((point.y + 0.5) * 100, point.x * 256, point.z * 256);
+        newColor.convertLabToRgb();
+        var rgbColor = newColor.rgb;
+
+        console.log("rgb: ", rgbColor);
+        console.log("");
+
+        return new THREE.Color(rgbColor.r, rgbColor.g, rgbColor.b);
     },
 
     /**

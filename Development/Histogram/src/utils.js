@@ -52,12 +52,10 @@ CustomEvent.prototype = {
  * @param message The message displayed if the test fails
  */
 function assertClose(assert, actual, expected, tolerance, message) {
-    var toleranceValue = Math.abs(tolerance * expected);
-
-    if(actual + toleranceValue >= expected && actual - toleranceValue <= expected) {
+    if(actual + tolerance >= expected && actual - tolerance <= expected) {
         assert.equal(true, true, message);
     } else {
-        assert.equal(false, true, message + "... " + "actual: " + actual + " not within " + tolerance*100 + "% of expected: " + expected);
+        assert.equal(false, true, message + "... " + "actual: " + actual + " not within " + tolerance + " of expected: " + expected);
     }
 }
 
@@ -84,17 +82,24 @@ Color.prototype = {
                 r: r,
                 g: g,
                 b: b
-            }
+            };
         }
+    },
+
+    setLab: function(l, a, b) {
+        this.lab = {
+            l: l,
+            a: a,
+            b: b
+        };
     },
 
     /**
      * Calculate the sRGB's CIE-Lab equivalent
      */
-    calculateLab: function() {
-        console.log("Converting sRGB colours to CIE-L*a*b*");
-
+    convertRgbToLab: function() {
         // First convert sRGB to CIE-XYZ
+        // Original formula converts from 0-255 to 0-1 range, but my values are already there
         var varR = this.rgbToXyzHelper(this.rgb.r) * 100;
         var varG = this.rgbToXyzHelper(this.rgb.g) * 100;
         var varB = this.rgbToXyzHelper(this.rgb.b) * 100;
@@ -131,6 +136,69 @@ Color.prototype = {
             return Math.pow(channel, 1/3);
         } else {
             return (7.787 * channel) + (16/116);
+        }
+    },
+
+    convertLabToRgb: function() {
+        // First convert from CIE-L*a*b* to CIE-XYZ
+        varY = (this.lab.l + 16) / 116;
+        varX = this.lab.a / 500 + varY;
+        varZ = varY - this.lab.b / 200;
+
+        var xyz = {
+            X: 95.047 * this.labToXyzHelper(varX),
+            Y: 100.0 * this.labToXyzHelper(varY),
+            Z: 108.883 * this.labToXyzHelper(varZ)
+        };
+
+        // Then convert from CIE-XYZ to sRGB
+        var varX1 = xyz.X / 100;
+        var varY1 = xyz.Y / 100;
+        var varZ1 = xyz.Z / 100;
+
+        var varR = varX1*3.2406  + varY1*-1.5372 + varZ1*-0.4986;
+        var varG = varX1*-0.9689 + varY1*1.8758  + varZ1*0.0415;
+        var varB = varX1*0.0557  + varY1*-0.2040 + varZ1*1.0570;
+
+        if (varR < 0) {
+            varR = 0;
+        }
+        if (varR > 1) {
+            varR = 1;
+        }
+        if (varG < 0) {
+            varG = 0;
+        }
+        if (varG > 1) {
+            varG = 1;
+        }
+        if (varB < 0) {
+            varB = 0;
+        }
+        if (varB > 1) {
+            varB = 1;
+        }
+        // Original formula then converts to 0-255 range but I keep it in 0-1 range
+        this.rgb = {
+            r: this.xyzTosRgbHelper(varR),
+            g: this.xyzTosRgbHelper(varG),
+            b: this.xyzTosRgbHelper(varB)
+        };
+    },
+
+    labToXyzHelper: function(channel) {
+        if (Math.pow(channel, 3) > 0.008856) {
+            return Math.pow(channel, 3);
+        } else {
+            return (channel - 16 / 116) / 7.787;
+        }
+    },
+
+    xyzTosRgbHelper: function(channel) {
+        if (channel > 0.0031308) {
+            return 1.055 * Math.pow(channel, 1/2.4) - 0.055;
+        } else {
+            return 12.92 * channel;
         }
     }
 };

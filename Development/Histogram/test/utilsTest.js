@@ -146,7 +146,7 @@ QUnit.test("Test setRGB with arguments out of accepted range", function(assert) 
     }
 });
 
-QUnit.test("Test calculateLab", function(assert) {
+QUnit.test("Test convertRgbToLab", function(assert) {
     var tolerance = 0.001;
     var testColorsRgb = [
         [0.0, 0.0, 0.0],
@@ -166,12 +166,45 @@ QUnit.test("Test calculateLab", function(assert) {
     for (var i = 0; i < testColorsRgb.length; i++) {
         var newColor = new Color();
         newColor.setRGB(testColorsRgb[i][0], testColorsRgb[i][1], testColorsRgb[i][2]);
-        newColor.calculateLab();
+        newColor.convertRgbToLab();
         var lab = newColor.lab;
 
         assertClose(assert, lab.l, testColorsLab[i][0], tolerance, "");
         assertClose(assert, lab.a, testColorsLab[i][1], tolerance, "");
         assertClose(assert, lab.b, testColorsLab[i][2], tolerance, "");
+    }
+
+    assert.equal(true, true); // To stop QUnit bitching at me
+});
+
+QUnit.test("Test convertLabToRgb", function(assert) {
+    var tolerance = 0.01;
+    var testColorsLab = [
+        [0.0, 0.0, 0.0],
+        [53.233, 80.109, 67.220],
+        [87.737, -86.185, 83.181],
+        [32.303, 79.197, -107.864],
+        [100.0, 0.00526, -0.0104],
+        [23, 19, 1]
+    ];
+    var testColorsRgb = [
+        [0.0, 0.0, 0.0],
+        [1.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0],
+        [0.0, 0.0, 1.0],
+        [1.0, 1.0, 1.0],
+        [0.31948, 0.17060, 0.21161]
+    ];
+
+    for (var i = 0; i < testColorsLab.length; i++) {
+        var newColor = new Color();
+        newColor.setLab(testColorsLab[i][0], testColorsLab[i][1], testColorsLab[i][2]);
+        newColor.convertLabToRgb();
+        var rgb = newColor.rgb;
+
+        assertClose(assert, rgb.r, testColorsRgb[i][0], tolerance, "");
+        assertClose(assert, rgb.g, testColorsRgb[i][1], tolerance, "");
+        assertClose(assert, rgb.b, testColorsRgb[i][2], tolerance, "");
     }
 
     assert.equal(true, true); // To stop QUnit bitching at me
