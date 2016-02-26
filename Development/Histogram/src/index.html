@@ -9,7 +9,7 @@
     <script src="https://cdn.rawgit.com/mrdoob/three.js/master/build/three.min.js"></script>
     <script src="https://cdn.rawgit.com/mrdoob/three.js/master/examples/js/controls/OrbitControls.js"></script>
 
-    <script type="x-shader/x-vertex" id="vertexShader">
+    <script type="x-shader/x-vertex" id="vertexShaderRgb">
         varying vec3 vColor;
 
         void main() {
@@ -18,12 +18,67 @@
             gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
         }
     </script>
-    <script type="x-shader/x-vertex" id="fragmentShader">
+    <script type="x-shader/x-vertex" id="fragmentShaderRgb">
         varying vec3 vColor;
 
-        void main(void) {
+        void main() {
             gl_FragColor = vec4(vColor, 1);
         }
+    </script>
+
+    <script type="x-shader/x-vertex" id="vertexShaderLab">
+        varying vec3 vColor;
+
+        void main() {
+            vColor = vec3((position.y + 0.5) * 100.0, position.x * 256.0, position.z * 256.0);
+
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+    </script>
+    <script type="x-shader/x-vertex" id="fragmentShaderLab">
+        varying vec3 vColor;
+
+        float labToXyzHelper(float channel) {
+            if (pow(channel, 3.0) > 0.008856) {
+                return pow(channel, 3.0);
+            } else {
+                return (channel - 16.0/116.0) / 7.787;
+            }
+        }
+
+        float xyzToRgbHelper(float channel) {
+            if (channel > 0.0031308) {
+                return 1.055 * pow(channel, 1.0/2.4) - 0.055;
+            } else {
+                return 12.92 * channel;
+            }
+        }
+
+        void main() {
+            float varY = (vColor[0] + 16.0) / 116.0;
+            float varX = (vColor[1] / 500.0) + varY;
+            float varZ = varY - (vColor[2] / 200.0);
+
+            float X = 95.047  * labToXyzHelper(varX);
+            float Y = 100.0   * labToXyzHelper(varY);
+            float Z = 108.883 * labToXyzHelper(varZ);
+
+            float varX1 = X / 100.0;
+            float varY1 = Y / 100.0;
+            float varZ1 = Z / 100.0;
+
+            float varR = varX1 *  3.2406 + varY1 * -1.5372 + varZ1 * -0.4986;
+            float varG = varX1 * -0.9689 + varY1 *  1.8758 + varZ1 *  0.0415;
+            float varB = varX1 *  0.0557 + varY1 * -0.2040 + varZ1 *  1.0570;
+
+            float R = xyzToRgbHelper(varR);
+            float G = xyzToRgbHelper(varG);
+            float B = xyzToRgbHelper(varB);
+
+            gl_FragColor = vec4(R, G, B, 1);
+        }
+
+
     </script>
 
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js"></script>

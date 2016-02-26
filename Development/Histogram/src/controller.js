@@ -21,8 +21,4 @@ function Controller(model, view) {
     this._view.imageDisplayed.attach(function(sender, args) {
        _this._model.parseImage(args);
     });
-
-    this._view.colorSpaceChanged.attach(function(sender, args) {
-        _this._model.changeColorSpace(args);
-    });
 }

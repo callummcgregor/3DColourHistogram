@@ -41,22 +41,15 @@ Model.prototype = {
         var sRGBColors24Bit = this.extractColors(context); // TODO: How to detect the bit
         this._colors = sRGBColors24Bit; // Save colours in original bit size as to not loose resolution unnecessarily
 
-        var sRGBColors16Bit = this.applyColorQuantisation(sRGBColors24Bit, 256, 16);
+        var sRGBColors16Bit = this.applyRgbColorQuantisation(sRGBColors24Bit, 256, 16);
         this.sRGBColorsReady.notify(sRGBColors16Bit);
     },
 
-    changeColorSpace: function(newColorSpace) {
-        if (newColorSpace != this._currentColorSpace) {
-            if (newColorSpace == "srgb") {
-                this.sRGBColorsReady.notify(this._colors);
-            } else if (newColorSpace == "cie-lab") {
-                // Convert to CIE-L*a*b*
-                for (var i = 0; i < this._colors.length; i++) {
-                    this._colors[i].convertRgbToLab();
-                }
-                this.labColorsReady.notify(this._colors);
-            }
+    convertColorsToLab: function() {
+        for (var i = 0; i < this._colors.length; i++) {
+            this._colors[i].convertRgbToLab();
         }
+        this.labColorsReady.notify(this._colors);
     },
 
     /**
@@ -123,7 +116,43 @@ Model.prototype = {
      * @param outputNoOfBits The desired bits of the output colours (e.g. 16)
      * @returns {Array} The converted input Color objects
      */
-    applyColorQuantisation: function(inputColors, inputNoOfBits, outputNoOfBits) {
+    applyRgbColorQuantisation: function(inputColors, inputNoOfBits, outputNoOfBits) {
+        console.log("Applying colour quantisation...");
+        var lut = this.generateLut(inputNoOfBits, outputNoOfBits);
+
+        var colors16Bit = [];
+        for(var i = 0; i < lut.length; i++) {
+            colors16Bit[i] = {
+                key: lut[i],
+                value: 0
+            };
+        }
+
+        // For each colour in the image, find it's 16-bit equivalent
+        for(var i = 0; i < inputColors.length; i++) {
+            var minDistance = 2; // A value outside ranges of the 0-1 cube (i.e. larger than Math.sqrt(3))
+            var minIndex = null; // Index of the 16-bit value in the LUT equivalent to the 24-bit input value
+
+            // Iterate over lut, finding entry that is closest to 24-bit colour
+            for(var j = 0; j < lut.length; j++) {
+                var rDiff = inputColors[i].rgb.r - lut[j].rgb.r;
+                var gDiff = inputColors[i].rgb.g - lut[j].rgb.g;
+                var bDiff = inputColors[i].rgb.b - lut[j].rgb.b;
+                var distance = Math.sqrt(Math.pow(rDiff, 2) + Math.pow(gDiff, 2) + Math.pow(bDiff, 2));
+
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    minIndex = j;
+                }
+            }
+
+            colors16Bit[minIndex].value += 1;
+        }
+
+        return colors16Bit; //TODO: For testing purposes, keep?
+    },
+
+    applyLabColorQuantisation: function(inputColors, inputNoOfBits, outputNoOfBits) {
         console.log("Applying colour quantisation...");
         var lut = this.generateLut(inputNoOfBits, outputNoOfBits);
 

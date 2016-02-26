@@ -63,7 +63,7 @@ QUnit.test("Test generateLut", function(assert) {
     //}
 });
 
-QUnit.test("Test applyColorQuantisation", function(assert) {
+QUnit.test("Test applyRgbColorQuantisation", function(assert) {
     var from = 256;
     var fromMax = from - 1;
     var to = 16;
@@ -75,7 +75,7 @@ QUnit.test("Test applyColorQuantisation", function(assert) {
         newColor.setRGB(i / fromMax, i / fromMax, i / fromMax);
         inputColors[i] = newColor;
     }
-    var colors16Bit = this.model.applyColorQuantisation(inputColors, from, to);
+    var colors16Bit = this.model.applyRgbColorQuantisation(inputColors, from, to);
 
     var valueSum = 0;
     for(var i = 0; i < colors16Bit.length; i++) {

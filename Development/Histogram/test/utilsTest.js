@@ -147,7 +147,7 @@ QUnit.test("Test setRGB with arguments out of accepted range", function(assert) 
 });
 
 QUnit.test("Test convertRgbToLab", function(assert) {
-    var tolerance = 0.001;
+    var tolerance = 1/127;
     var testColorsRgb = [
         [0.0, 0.0, 0.0],
         [1.0, 0.0, 0.0],
@@ -178,7 +178,7 @@ QUnit.test("Test convertRgbToLab", function(assert) {
 });
 
 QUnit.test("Test convertLabToRgb", function(assert) {
-    var tolerance = 0.01;
+    var tolerance = 1/255;
     var testColorsLab = [
         [0.0, 0.0, 0.0],
         [53.233, 80.109, 67.220],
