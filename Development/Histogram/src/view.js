@@ -19,13 +19,8 @@ function View(model, elements) {
         _this.displayImage(args);
     });
 
-    this._model.sRGBColorsReady.attach(function(sender, args) {
-        _this.plotRGBColors(args);
-    });
-
-    this._model.labColorsReady.attach(function(sender, args) {
-        console.log("Plotting lab colours: ", args);
-        _this.plotLabColors(args);
+    this._model.colorsReady.attach(function(sender, args) {
+        _this.plotRGBColors();
     });
 
     this._elements.imageUploadButton.change(function(e) {
@@ -37,7 +32,14 @@ function View(model, elements) {
 
     this._elements.colorSpaceRadio.change(function(e) {
         console.log("Colour space changed to " + e.target.value);
-        _this.changeColorSpace(e.target.value);
+
+        if (e.target.value == "srgb") {
+            _this.createRGBWireframeCube();
+            _this.plotRGBColors();
+        } else if (e.target.value == "cie-lab") {
+            _this.createLabWireframeCube();
+            _this.plotLabColors();
+        }
     });
 }
 
@@ -53,11 +55,6 @@ View.prototype = {
         context.drawImage(image, 0, 0);
 
         this.imageDisplayed.notify(context);
-    },
-
-    changeColorSpace: function(space) {
-        _this.createLabWireframeCube();
-        _this._model.convertColorsToLab();
     },
 
     renderColourSpace: function() {
@@ -78,6 +75,7 @@ View.prototype = {
         canvas.append(this._world.renderer.domElement);
 
         this.createRGBWireframeCube();
+        //this.createLabWireframeCube();
         this.render();
     },
 
@@ -207,10 +205,8 @@ View.prototype = {
     /**
      * Takes in an array of colours and plots them in the unit cube, coloured appropriately.
      * Currently plots as constant radius spheres.
-     *
-     * @param colorDict A dictionary of Colors (the keys) and the number of that colour present (the values)
      */
-    plotRGBColors: function(colorDict) {
+    plotRGBColors: function() {
         var pointMeshes = []; // Collection of point meshes
         var combinedGeometry, combinedMaterial, combinedMesh; // Geom, material, and mesh for all points as a collective
         var maxSphereRadius = 0.1;
@@ -218,6 +214,31 @@ View.prototype = {
 
         // Remove previous colour plots from the scene
         this.clearHistogram();
+
+        colorDict = [];
+        var colors  = this._model._colors;
+        for (var i = 0; i < colors.length; i++) {
+            var quantisedColor = colors[i].getQuantisedRgbColor();
+
+            var found = false;
+            var count = 0;
+
+            while (!found && count < colorDict.length) {
+                if (quantisedColor.r == colorDict[count].key.rgb.r && quantisedColor.g == colorDict[count].key.rgb.g && quantisedColor.b == colorDict[count].key.rgb.b) {
+                    colorDict[count].value += 1;
+                    found = true;
+                }
+                count += 1;
+            }
+            if (!found) {
+                var newColor = new Color();
+                newColor.setRGB(quantisedColor.r, quantisedColor.g, quantisedColor.b);
+                colorDict.push({
+                    key: newColor,
+                    value: 1
+                })
+            }
+        }
 
         // Find min and max value in colorDict
         var maxValue = colorDict[0].value;
@@ -272,66 +293,97 @@ View.prototype = {
         this._world.scene.add(combinedMesh);
     },
 
-    plotLabColors: function(colors) {
-        var pointGeometry, pointMaterial, pointMesh;
-        var combinedGeometry, combinedMaterial, combinedMesh;
+    plotLabColors: function() {
+        var pointMeshes = []; // Collection of point meshes
+        var combinedGeometry, combinedMaterial, combinedMesh; // Geom, material, and mesh for all points as a collective
         var maxSphereRadius = 0.1;
         var minSphereRadius = 0.001;
-        var meshes = [];
 
         // Remove previous colour plots from the scene
         this.clearHistogram();
 
-        // Find largest value in colors
-        var maxValue = 0;
-        var minValue = 1000000000; // TODO: not sustainable
+        colorDict = [];
+        var colors  = this._model._colors;
         for (var i = 0; i < colors.length; i++) {
-            if (colors[i].value > maxValue) {
-                maxValue = colors[i].value;
+            var quantisedColor = colors[i].getQuantisedLabColor();
+
+            var found = false;
+            var count = 0;
+            while (!found && count < colorDict.length) {
+                if (quantisedColor.l == colorDict[count].key.lab.l && quantisedColor.a == colorDict[count].key.lab.a && quantisedColor.b == colorDict[count].key.lab.b) {
+                    colorDict[count].value += 1;
+                    found = true;
+                }
+                count += 1;
             }
-            if (colors[i].value < minValue) {
-                minValue = colors[i].value;
+            if (!found) {
+                var newColor = new Color();
+                newColor.setLab(quantisedColor.l, quantisedColor.a, quantisedColor.b); // TODO: Just use an array/object?
+                colorDict.push({
+                    key: newColor,
+                    value: 1
+                })
+            }
+        }
+
+        // Find min and max value in colorDict
+        var maxValue = colorDict[0].value;
+        var minValue = colorDict[0].value;
+        for (var i = 0; i < colorDict.length; i++) {
+            if (colorDict[i].value > maxValue) {
+                maxValue = colorDict[i].value;
+            }
+            if (colorDict[i].value < minValue) {
+                minValue = colorDict[i].value;
             }
             // TODO: Prevent 0 value colours from being in this list
         }
         console.log("Max value: " + maxValue);
         console.log("Min value: " + minValue);
 
-        for (var i = 0; i < colors.length; i++) {
-            if (colors[i].value > 0) {
+        // Create mesh for each colour (with a value greater than 0)
+        for (var i = 0; i < colorDict.length; i++) {
+            if (colorDict[i].value > 0) {
                 // Uses ln(x+1) to scale large results down so they don't dwarf others
                 // x+1 ensures that y is always postive for x (i.e. when value = 1, ln != 0)
-                var scaledPercentageOfMaxValue = Math.log(colors[i].value + 1) / Math.log(maxValue + 1);
+                var scaledPercentageOfMaxValue = Math.log(colorDict[i].value + 1) / Math.log(maxValue + 1);
                 var sphereRadius = scaledPercentageOfMaxValue * maxSphereRadius;
 
-                // Ensure tiny ones are still visible
+                // Ensure small values are still visible
                 if (sphereRadius < minSphereRadius) {
                     sphereRadius = minSphereRadius;
                 }
 
-                pointGeometry = new THREE.SphereGeometry(sphereRadius);
-                pointMaterial = new THREE.MeshBasicMaterial(); // Changes made to this material will have no effect on the objects
-                pointMesh = new THREE.Mesh(pointGeometry, pointMaterial);
+                var pointMesh = new THREE.Mesh(new THREE.SphereGeometry(sphereRadius), new THREE.MeshBasicMaterial()); // Changes made to this material will have no effect on the objects
 
-                var position = this.findPositionOfRGBColor(colors[i].key.rgb); // TODO: Hmmm
+                // Set the position of the mesh according to a colour
+                var position = this.findPositionOfLabColor(colorDict[i].key.lab);
+                //console.log("Position: ", position);
+                if (position.x < 0) {
+                    console.log("x < 0")
+                }
+                if (colorDict[i].key.lab.a < 0) {
+                    console.log("a < 0")
+                }
 
                 pointMesh.position.x = position.x; // This works, but pointMesh.position = position does not
                 pointMesh.position.y = position.y;
                 pointMesh.position.z = position.z;
 
-                meshes.push(pointMesh);
+                pointMeshes.push(pointMesh);
             }
         }
 
-        combinedGeometry = this.mergeMeshes(meshes);
+        // Combine point meshes into a single mesh
+        combinedGeometry = this.mergeMeshes(pointMeshes);
         combinedMaterial = new THREE.ShaderMaterial({
-            vertexShader: $("#vertexShaderLab").text(),
-            fragmentShader: $("#fragmentShaderLab").text(),
+            vertexShader: $("#vertexShaderRgb").text(),
+            fragmentShader: $("#fragmentShaderRgb").text(),
             wireframe: true
         });
-
         combinedMesh = new THREE.Mesh(combinedGeometry, combinedMaterial);
 
+        // Add combined mesh to the scene (i.e. plot points on the histogram)
         this._world.scene.add(combinedMesh);
     },
 
@@ -345,10 +397,7 @@ View.prototype = {
 
     clearCanvas: function() {
         for(var i = this._world.scene.children.length - 1; i >= 0; i--) {
-            //console.log(this._world.scene.children[i].type);
-            //if (this._world.scene.children[i].type == "Line" || "LineSegments") { // Assuming colour plots are always of the type "Mesh"
-                this._world.scene.remove(this._world.scene.children[i]);
-            //}
+            this._world.scene.remove(this._world.scene.children[i]);
         }
     },
 
@@ -361,6 +410,10 @@ View.prototype = {
      */
     findPositionOfRGBColor: function(color) {
         return new THREE.Vector3(color.r - 0.5, color.g - 0.5, color.b- 0.5); // .r/.g/.b have range 0-1
+    },
+
+    findPositionOfLabColor: function(color) {
+        return new THREE.Vector3(color.a / 256.0, (color.l / 100.0) - 0.5, color.b / 256.0);
     },
 
     /**

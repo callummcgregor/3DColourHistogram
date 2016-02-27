@@ -6,10 +6,8 @@
 function Model() {
     this._image = null;
     this._colors = null;
-    this._currentColorSpace = "srgb";
     this.imageReady = new CustomEvent(this);
-    this.sRGBColorsReady = new CustomEvent(this);
-    this.labColorsReady = new CustomEvent(this);
+    this.colorsReady = new CustomEvent(this);
 }
 
 Model.prototype = {
@@ -38,18 +36,11 @@ Model.prototype = {
      * @param context The image context (from the HTML5 canvas element)
      */
     parseImage: function(context) {
-        var sRGBColors24Bit = this.extractColors(context); // TODO: How to detect the bit
-        this._colors = sRGBColors24Bit; // Save colours in original bit size as to not loose resolution unnecessarily
+         // TODO: How to detect the bit of extracted colours
+        this._colors = this.extractColors(context); // Save colours in original bit size as to not loose resolution unnecessarily
 
-        var sRGBColors16Bit = this.applyRgbColorQuantisation(sRGBColors24Bit, 256, 16);
-        this.sRGBColorsReady.notify(sRGBColors16Bit);
-    },
-
-    convertColorsToLab: function() {
-        for (var i = 0; i < this._colors.length; i++) {
-            this._colors[i].convertRgbToLab();
-        }
-        this.labColorsReady.notify(this._colors);
+        //var sRGBColors16Bit = this.applyRgbColorQuantisation(extractedColors, 256, 16);
+        this.colorsReady.notify(/*sRGBColors16Bit*/);
     },
 
     /**
@@ -120,9 +111,9 @@ Model.prototype = {
         console.log("Applying colour quantisation...");
         //var lut = this.generateLut(inputNoOfBits, outputNoOfBits);
         //
-        //var colors16Bit = [];
+        //var quantisedColors = [];
         //for(var i = 0; i < lut.length; i++) {
-        //    colors16Bit[i] = {
+        //    quantisedColors[i] = {
         //        key: lut[i],
         //        value: 0
         //    };
@@ -146,20 +137,21 @@ Model.prototype = {
         //        }
         //    }
         //
-        //    colors16Bit[minIndex].value += 1;
+        //    quantisedColors[minIndex].value += 1;
         //}
 
-        var colors16Bit = [];
+        var quantisedColors = [];
+
         for (var i = 0; i < inputColors.length; i++) {
             var color = [Math.round((inputColors[i].rgb.r * 255) / 17) / 15,
-                Math.round((inputColors[i].rgb.g * 255) / 17) / 15,
-                Math.round((inputColors[i].rgb.b * 255) / 17) / 15];
+                         Math.round((inputColors[i].rgb.g * 255) / 17) / 15,
+                         Math.round((inputColors[i].rgb.b * 255) / 17) / 15];
 
             var found = false;
             var count = 0;
-            while (!found && count < colors16Bit.length) {
-                if (colors16Bit[count].key.rgb.r == color[0] && colors16Bit[count].key.rgb.g == color[1] && colors16Bit[count].key.rgb.b == color[2]) {
-                    colors16Bit[count].value += 1;
+            while (!found && count < quantisedColors.length) {
+                if (quantisedColors[count].key.rgb.r == color[0] && quantisedColors[count].key.rgb.g == color[1] && quantisedColors[count].key.rgb.b == color[2]) {
+                    quantisedColors[count].value += 1;
                     found = true;
                 }
                 count += 1;
@@ -167,7 +159,7 @@ Model.prototype = {
             if (!found) {
                 var newColor = new Color();
                 newColor.setRGB(color[0], color[1], color[2]);
-                colors16Bit.push({
+                quantisedColors.push({
                     key: newColor,
                     value: 1
                 })
@@ -175,42 +167,6 @@ Model.prototype = {
         }
 
 
-        return colors16Bit; //TODO: For testing purposes, keep?
-    },
-
-    applyLabColorQuantisation: function(inputColors, inputNoOfBits, outputNoOfBits) {
-        console.log("Applying colour quantisation...");
-        var lut = this.generateLut(inputNoOfBits, outputNoOfBits);
-
-        var colors16Bit = [];
-        for(var i = 0; i < lut.length; i++) {
-            colors16Bit[i] = {
-                key: lut[i],
-                value: 0
-            };
-        }
-
-        // For each colour in the image, find it's 16-bit equivalent
-        for(var i = 0; i < inputColors.length; i++) {
-            var minDistance = 2; // A value outside ranges of the 0-1 cube (i.e. larger than Math.sqrt(3))
-            var minIndex = null; // Index of the 16-bit value in the LUT equivalent to the 24-bit input value
-
-            // Iterate over lut, finding entry that is closest to 24-bit colour
-            for(var j = 0; j < lut.length; j++) {
-                var rDiff = inputColors[i].rgb.r - lut[j].rgb.r;
-                var gDiff = inputColors[i].rgb.g - lut[j].rgb.g;
-                var bDiff = inputColors[i].rgb.b - lut[j].rgb.b;
-                var distance = Math.sqrt(Math.pow(rDiff, 2) + Math.pow(gDiff, 2) + Math.pow(bDiff, 2));
-
-                if (distance < minDistance) {
-                    minDistance = distance;
-                    minIndex = j;
-                }
-            }
-
-            colors16Bit[minIndex].value += 1;
-        }
-
-        return colors16Bit; //TODO: For testing purposes, keep?
+        return quantisedColors; //TODO: For testing purposes, keep?
     }
 };

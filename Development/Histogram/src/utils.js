@@ -84,6 +84,8 @@ Color.prototype = {
                 b: b
             };
         }
+
+        this.convertRgbToLab();
     },
 
     setLab: function(l, a, b) {
@@ -92,6 +94,31 @@ Color.prototype = {
             a: a,
             b: b
         };
+
+        this.convertLabToRgb();
+    },
+
+    /**
+     * Convert an array of Color objects from the input bits to output bits (e.g. 24-bit to 16-bit color)
+     * TODO: Add paramters
+     * TODO: Save quantised colours
+     *
+     * @returns {Array} The converted input Color objects
+     */
+    getQuantisedRgbColor: function() {
+        return {
+            r: Math.round((this.rgb.r * 255) / 17) / 15,
+            g: Math.round((this.rgb.g * 255) / 17) / 15,
+            b: Math.round((this.rgb.b * 255) / 17) / 15
+        }
+    },
+
+    getQuantisedLabColor: function() {
+        return {
+            l: Math.round((this.lab.l) / 10) * 10,
+            a: Math.round((this.lab.a) / 17) * 17,
+            b: Math.round((this.lab.b) / 17) * 17
+        }
     },
 
     /**
