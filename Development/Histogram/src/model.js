@@ -118,36 +118,62 @@ Model.prototype = {
      */
     applyRgbColorQuantisation: function(inputColors, inputNoOfBits, outputNoOfBits) {
         console.log("Applying colour quantisation...");
-        var lut = this.generateLut(inputNoOfBits, outputNoOfBits);
+        //var lut = this.generateLut(inputNoOfBits, outputNoOfBits);
+        //
+        //var colors16Bit = [];
+        //for(var i = 0; i < lut.length; i++) {
+        //    colors16Bit[i] = {
+        //        key: lut[i],
+        //        value: 0
+        //    };
+        //}
+        //
+        //// For each colour in the image, find it's 16-bit equivalent
+        //for(var i = 0; i < inputColors.length; i++) {
+        //    var minDistance = 2; // A value outside ranges of the 0-1 cube (i.e. larger than Math.sqrt(3))
+        //    var minIndex = null; // Index of the 16-bit value in the LUT equivalent to the 24-bit input value
+        //
+        //    // Iterate over lut, finding entry that is closest to 24-bit colour
+        //    for(var j = 0; j < lut.length; j++) {
+        //        var rDiff = inputColors[i].rgb.r - lut[j].rgb.r;
+        //        var gDiff = inputColors[i].rgb.g - lut[j].rgb.g;
+        //        var bDiff = inputColors[i].rgb.b - lut[j].rgb.b;
+        //        var distance = Math.sqrt(Math.pow(rDiff, 2) + Math.pow(gDiff, 2) + Math.pow(bDiff, 2));
+        //
+        //        if (distance < minDistance) {
+        //            minDistance = distance;
+        //            minIndex = j;
+        //        }
+        //    }
+        //
+        //    colors16Bit[minIndex].value += 1;
+        //}
 
         var colors16Bit = [];
-        for(var i = 0; i < lut.length; i++) {
-            colors16Bit[i] = {
-                key: lut[i],
-                value: 0
-            };
-        }
+        for (var i = 0; i < inputColors.length; i++) {
+            var color = [Math.round((inputColors[i].rgb.r * 255) / 17) / 15,
+                Math.round((inputColors[i].rgb.g * 255) / 17) / 15,
+                Math.round((inputColors[i].rgb.b * 255) / 17) / 15];
 
-        // For each colour in the image, find it's 16-bit equivalent
-        for(var i = 0; i < inputColors.length; i++) {
-            var minDistance = 2; // A value outside ranges of the 0-1 cube (i.e. larger than Math.sqrt(3))
-            var minIndex = null; // Index of the 16-bit value in the LUT equivalent to the 24-bit input value
-
-            // Iterate over lut, finding entry that is closest to 24-bit colour
-            for(var j = 0; j < lut.length; j++) {
-                var rDiff = inputColors[i].rgb.r - lut[j].rgb.r;
-                var gDiff = inputColors[i].rgb.g - lut[j].rgb.g;
-                var bDiff = inputColors[i].rgb.b - lut[j].rgb.b;
-                var distance = Math.sqrt(Math.pow(rDiff, 2) + Math.pow(gDiff, 2) + Math.pow(bDiff, 2));
-
-                if (distance < minDistance) {
-                    minDistance = distance;
-                    minIndex = j;
+            var found = false;
+            var count = 0;
+            while (!found && count < colors16Bit.length) {
+                if (colors16Bit[count].key.rgb.r == color[0] && colors16Bit[count].key.rgb.g == color[1] && colors16Bit[count].key.rgb.b == color[2]) {
+                    colors16Bit[count].value += 1;
+                    found = true;
                 }
+                count += 1;
             }
-
-            colors16Bit[minIndex].value += 1;
+            if (!found) {
+                var newColor = new Color();
+                newColor.setRGB(color[0], color[1], color[2]);
+                colors16Bit.push({
+                    key: newColor,
+                    value: 1
+                })
+            }
         }
+
 
         return colors16Bit; //TODO: For testing purposes, keep?
     },
