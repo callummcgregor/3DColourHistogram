@@ -63,40 +63,50 @@ function assertClose(assert, actual, expected, tolerance, message) {
  * Object for representing a colour
  */
 function Color() {
-    this.rgb = null;
-    this.lab = null;
-}
+    // Private variables
+    var rgb = null;
+    var lab = null;
 
-Color.prototype = {
+    // Public methods
     /**
      * Set the Color's RGB values
      * @param r red value in range 0-1
      * @param g green value in range 0-1
      * @param b blue value in range 0-1
      */
-    setRGB: function(r, g, b) {
+    this.setRgb = function(r, g, b) {
         if (r < 0.0 || r > 1.0 || g < 0.0 || g > 1.0 || b < 0.0 || b > 1.0) {
             throw new Exception("Inputted values must be in range 0-1 (inclusive)"); // TODO: Give erroneous values
         } else {
-            this.rgb = {
+            rgb = {
                 r: r,
                 g: g,
                 b: b
             };
+            this.rgbToLab();
         }
+    };
 
-        this.convertRgbToLab();
-    },
+    this.setLab = function(l, a, b) {
+        if (l < 0.0 || l > 100.0 || a < -128.0 || a > 127.0 || b < -128.0 || b > 127.0) {
+            throw new Exception("Inputted values outside accepted ranges"); // TODO: Give erroneous values
+        } else {
+            lab = {
+                l: l,
+                a: a,
+                b: b
+            };
+            this.labToRgb();
+        }
+    };
 
-    setLab: function(l, a, b) {
-        this.lab = {
-            l: l,
-            a: a,
-            b: b
-        };
+    this.getRgb = function() {
+        return rgb;
+    };
 
-        this.convertLabToRgb();
-    },
+    this.getLab = function() {
+        return lab;
+    };
 
     /**
      * Convert an array of Color objects from the input bits to output bits (e.g. 24-bit to 16-bit color)
@@ -105,31 +115,28 @@ Color.prototype = {
      *
      * @returns {Array} The converted input Color objects
      */
-    getQuantisedRgbColor: function() {
+    this.quantiseRgb = function() {
         return {
-            r: Math.round((this.rgb.r * 255) / 17) / 15,
-            g: Math.round((this.rgb.g * 255) / 17) / 15,
-            b: Math.round((this.rgb.b * 255) / 17) / 15
+            r: Math.round((rgb.r * 255) / 17) / 15,
+            g: Math.round((rgb.g * 255) / 17) / 15,
+            b: Math.round((rgb.b * 255) / 17) / 15
         }
-    },
+    };
 
-    getQuantisedLabColor: function() {
+    this.quantiseLab = function() {
         return {
-            l: Math.round((this.lab.l) / 10) * 10,
-            a: Math.round((this.lab.a) / 17) * 17,
-            b: Math.round((this.lab.b) / 17) * 17
+            l: Math.round((lab.l) / 10) * 10,
+            a: Math.round((lab.a) / 17) * 15,
+            b: Math.round((lab.b) / 17) * 15
         }
-    },
+    };
 
-    /**
-     * Calculate the sRGB's CIE-Lab equivalent
-     */
-    convertRgbToLab: function() {
+    this.rgbToLab = function() {
         // First convert sRGB to CIE-XYZ
         // Original formula converts from 0-255 to 0-1 range, but my values are already there
-        var varR = this.rgbToXyzHelper(this.rgb.r) * 100;
-        var varG = this.rgbToXyzHelper(this.rgb.g) * 100;
-        var varB = this.rgbToXyzHelper(this.rgb.b) * 100;
+        var varR = rgbToXyzHelper(rgb.r) * 100;
+        var varG = rgbToXyzHelper(rgb.g) * 100;
+        var varB = rgbToXyzHelper(rgb.b) * 100;
 
         var xyz = {
             X: (varR * 0.4124) + (varG * 0.3576) + (varB * 0.1805),
@@ -138,44 +145,27 @@ Color.prototype = {
         };
 
         // Then convert CIE-XYZ to CIE-Lab
-        var varX = this.xyzToLabHelper(xyz.X /  95.047);
-        var varY = this.xyzToLabHelper(xyz.Y / 100.000);
-        var varZ = this.xyzToLabHelper(xyz.Z / 108.883);
+        var varX = xyzToLabHelper(xyz.X /  95.047);
+        var varY = xyzToLabHelper(xyz.Y / 100.000);
+        var varZ = xyzToLabHelper(xyz.Z / 108.883);
 
-        this.lab = {
+        lab = {
             l: (116 * varY) - 16,
             a: 500 * (varX - varY),
             b: 200 * (varY - varZ)
         };
-    },
+    };
 
-    rgbToXyzHelper: function(channel) {
-        if (channel > 0.04045) {
-            channel = Math.pow((channel + 0.055) / 1.055, 2.4)
-        } else {
-            channel = channel / 12.92
-        }
-        return channel
-    },
-
-    xyzToLabHelper: function(channel) {
-        if (channel > 0.00856) {
-            return Math.pow(channel, 1/3);
-        } else {
-            return (7.787 * channel) + (16/116);
-        }
-    },
-
-    convertLabToRgb: function() {
+    this.labToRgb = function() {
         // First convert from CIE-L*a*b* to CIE-XYZ
-        varY = (this.lab.l + 16) / 116;
-        varX = this.lab.a / 500 + varY;
-        varZ = varY - this.lab.b / 200;
+        varY = (lab.l + 16) / 116;
+        varX = lab.a / 500 + varY;
+        varZ = varY - lab.b / 200;
 
         var xyz = {
-            X: 95.047 * this.labToXyzHelper(varX),
-            Y: 100.0 * this.labToXyzHelper(varY),
-            Z: 108.883 * this.labToXyzHelper(varZ)
+            X:  95.047 * labToXyzHelper(varX),
+            Y: 100.0   * labToXyzHelper(varY),
+            Z: 108.883 * labToXyzHelper(varZ)
         };
 
         // Then convert from CIE-XYZ to sRGB
@@ -206,27 +196,49 @@ Color.prototype = {
             varB = 1;
         }
         // Original formula then converts to 0-255 range but I keep it in 0-1 range
-        this.rgb = {
-            r: this.xyzTosRgbHelper(varR),
-            g: this.xyzTosRgbHelper(varG),
-            b: this.xyzTosRgbHelper(varB)
+        rgb = {
+            r: xyzTosRgbHelper(varR),
+            g: xyzTosRgbHelper(varG),
+            b: xyzTosRgbHelper(varB)
         };
-    },
+    };
 
-    labToXyzHelper: function(channel) {
+    // Private methods
+    var rgbToXyzHelper = function(channel) {
+        if (channel > 0.04045) {
+            channel = Math.pow((channel + 0.055) / 1.055, 2.4)
+        } else {
+            channel = channel / 12.92
+        }
+        return channel
+    };
+
+    var xyzToLabHelper = function(channel) {
+        if (channel > 0.00856) {
+            return Math.pow(channel, 1/3);
+        } else {
+            return (7.787 * channel) + (16/116);
+        }
+    };
+
+    var labToXyzHelper = function(channel) {
         if (Math.pow(channel, 3) > 0.008856) {
             return Math.pow(channel, 3);
         } else {
             return (channel - 16 / 116) / 7.787;
         }
-    },
+    };
 
-    xyzTosRgbHelper: function(channel) {
+    var xyzTosRgbHelper = function(channel) {
         if (channel > 0.0031308) {
             return 1.055 * Math.pow(channel, 1/2.4) - 0.055;
         } else {
             return 12.92 * channel;
         }
-    }
-};
+    };
+}
+
+// Static variables
+Color.rgbEnum = "srgb";
+Color.labEnum = "cie-lab";
 

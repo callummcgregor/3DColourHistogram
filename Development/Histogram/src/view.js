@@ -8,6 +8,7 @@ function View(model, elements) {
     this._model = model;
     this._elements = elements;
     this._world = {};
+    this._colorSpace = Color.rgbEnum;
 
     this.imageUploaded = new CustomEvent(this);
     this.imageDisplayed = new CustomEvent(this);
@@ -20,7 +21,7 @@ function View(model, elements) {
     });
 
     this._model.colorsReady.attach(function(sender, args) {
-        _this.plotRGBColors();
+        _this.plotColors();
     });
 
     this._elements.imageUploadButton.change(function(e) {
@@ -31,14 +32,17 @@ function View(model, elements) {
     });
 
     this._elements.colorSpaceRadio.change(function(e) {
-        console.log("Colour space changed to " + e.target.value);
+        console.log("Colour space changed to " + e.target.value.toString());
 
-        if (e.target.value == "srgb") {
-            _this.createRGBWireframeCube();
-            _this.plotRGBColors();
-        } else if (e.target.value == "cie-lab") {
-            _this.createLabWireframeCube();
-            _this.plotLabColors();
+        if (e.target.value != Color.rgbEnum && e.target.value != Color.labEnum) {
+            throw new Exception("Unrecognised color space, " + e.target.value);
+        } else {
+            _this._colorSpace = e.target.value;
+        }
+
+        _this.createWireframeCube();
+        if (_this._model._colors != null) {
+            _this.plotColors();
         }
     });
 }
@@ -74,8 +78,7 @@ View.prototype = {
         var canvas = $("#histogram_holder");
         canvas.append(this._world.renderer.domElement);
 
-        this.createRGBWireframeCube();
-        //this.createLabWireframeCube();
+        this.createWireframeCube();
         this.render();
     },
 
@@ -85,15 +88,24 @@ View.prototype = {
      *
      * Note: Worth considering putting entire cube into a LineSegments geometry for the sake of performance
      */
-    createRGBWireframeCube: function() {
+    createWireframeCube: function() {
         this.clearCanvas();
 
-        var vShader = $('#vertexShaderRgb');
-        var fShader = $('#fragmentShaderRgb');
+        // Select appropriate shaders
+        if (this._colorSpace == Color.rgbEnum) {
+            console.log("Rgb shader");
+            var vShader = $('#vertexShaderRgb').text();
+            var fShader = $('#fragmentShaderRgb').text();
+        } else if (this._colorSpace == Color.labEnum) {
+            console.log("Rgb shader");
+            var vShader = $('#vertexShaderLab').text();
+            var fShader = $('#fragmentShaderLab').text();
+        }
 
+        // Create material
         var material = new THREE.ShaderMaterial({
-            vertexShader: vShader.text(),
-            fragmentShader: fShader.text()
+            vertexShader: vShader,
+            fragmentShader: fShader
         });
 
         var sidesGeometry = new THREE.Geometry();
@@ -120,93 +132,36 @@ View.prototype = {
 
         this._world.scene.add(sides);
         this._world.scene.add(connectingEdges);
-    },
 
-    createLabWireframeCube: function() {
-        this.clearCanvas();
+        // If Lab, also plot the axes
+        if (this._colorSpace == Color.labEnum) {
+            // Create axes
+            var lAxisGeometry = new THREE.Geometry();
+            lAxisGeometry.vertices.push(new THREE.Vector3(0.0, -0.5, 0.0)); // L = 0
+            lAxisGeometry.vertices.push(new THREE.Vector3(0.0,  0.5, 0.0)); // L = 100
+            var lAxis = new THREE.Line(lAxisGeometry, material);
 
-        var vShader = $('#vertexShaderLab');
-        var fShader = $('#fragmentShaderLab');
+            var aAxisGeometry = new THREE.Geometry();
+            aAxisGeometry.vertices.push(new THREE.Vector3(-0.5, 0.0, 0.0)); // a-
+            aAxisGeometry.vertices.push(new THREE.Vector3( 0.5, 0.0, 0.0)); // a+
+            var aAxis = new THREE.Line(aAxisGeometry, material);
 
-        var material = new THREE.ShaderMaterial({
-            vertexShader: vShader.text(),
-            fragmentShader: fShader.text()
-        });
+            var bAxisGeometry = new THREE.Geometry();
+            bAxisGeometry.vertices.push(new THREE.Vector3(0.0, 0.0, -0.5)); // b-
+            bAxisGeometry.vertices.push(new THREE.Vector3(0.0, 0.0,  0.5)); // b+
+            var bAxis = new THREE.Line(bAxisGeometry, material);
 
-        // Create cube
-        var sidesGeometry = new THREE.Geometry();
-        sidesGeometry.vertices.push(new THREE.Vector3(-0.5, -0.5, -0.5)); // Black
-        sidesGeometry.vertices.push(new THREE.Vector3(-0.5,  0.5, -0.5)); // Green
-        sidesGeometry.vertices.push(new THREE.Vector3(-0.5,  0.5,  0.5)); // Cyan
-        sidesGeometry.vertices.push(new THREE.Vector3(-0.5, -0.5,  0.5)); // Blue
-        sidesGeometry.vertices.push(new THREE.Vector3(-0.5, -0.5, -0.5)); // Black
-        sidesGeometry.vertices.push(new THREE.Vector3( 0.5, -0.5, -0.5)); // Red
-        sidesGeometry.vertices.push(new THREE.Vector3( 0.5,  0.5, -0.5)); // Yellow
-        sidesGeometry.vertices.push(new THREE.Vector3( 0.5,  0.5,  0.5)); // White
-        sidesGeometry.vertices.push(new THREE.Vector3( 0.5, -0.5,  0.5)); // Magenta
-        sidesGeometry.vertices.push(new THREE.Vector3( 0.5, -0.5, -0.5)); // Red
-        var sides = new THREE.Line(sidesGeometry, material);
-
-        var connectingEdgesGeometry = new THREE.Geometry();
-        connectingEdgesGeometry.vertices.push(new THREE.Vector3( 0.5,  0.5, -0.5)); // Yellow
-        connectingEdgesGeometry.vertices.push(new THREE.Vector3(-0.5,  0.5, -0.5)); // Green
-        connectingEdgesGeometry.vertices.push(new THREE.Vector3( 0.5,  0.5,  0.5)); // White
-        connectingEdgesGeometry.vertices.push(new THREE.Vector3(-0.5,  0.5,  0.5)); // Cyan
-        connectingEdgesGeometry.vertices.push(new THREE.Vector3( 0.5, -0.5,  0.5)); // Magenta
-        connectingEdgesGeometry.vertices.push(new THREE.Vector3(-0.5, -0.5,  0.5)); // Blue
-        var connectingEdges = new THREE.LineSegments(connectingEdgesGeometry, material);
-
-        this._world.scene.add(sides);
-        this._world.scene.add(connectingEdges);
-
-        // Create axes
-        var lAxisGeometry = new THREE.Geometry();
-        lAxisGeometry.vertices.push(new THREE.Vector3(0.0, -0.5, 0.0)); // L = 0
-        lAxisGeometry.vertices.push(new THREE.Vector3(0.0,  0.5, 0.0)); // L = 100
-        var lAxis = new THREE.Line(lAxisGeometry, material);
-
-        var aAxisGeometry = new THREE.Geometry();
-        aAxisGeometry.vertices.push(new THREE.Vector3(-0.5, 0.0, 0.0)); // a-
-        aAxisGeometry.vertices.push(new THREE.Vector3( 0.5, 0.0, 0.0)); // a+
-        var aAxis = new THREE.Line(aAxisGeometry, material);
-
-        var bAxisGeometry = new THREE.Geometry();
-        bAxisGeometry.vertices.push(new THREE.Vector3(0.0, 0.0, -0.5)); // b-
-        bAxisGeometry.vertices.push(new THREE.Vector3(0.0, 0.0,  0.5)); // b+
-        var bAxis = new THREE.Line(bAxisGeometry, material);
-
-        this._world.scene.add(lAxis);
-        this._world.scene.add(aAxis);
-        this._world.scene.add(bAxis);
-
-        // Create plane at L = 50
-        var planeGeometry = new THREE.BufferGeometry();
-        var vertexPositions = [
-            [-0.5, 0.0,  0.5],
-            [ 0.5, 0.0,  0.5],
-            [ 0.5, 0.0, -0.5],
-
-            [ 0.5, 0.0, -0.5],
-            [-0.5, 0.0, -0.5],
-            [-0.5, 0.0,  0.5]
-        ];
-        var vertices = new Float32Array(vertexPositions.length * 3);
-        for(var i = 0; i < vertexPositions.length; i++) {
-            vertices[i*3 + 0] = vertexPositions[i][0];
-            vertices[i*3 + 1] = vertexPositions[i][1];
-            vertices[i*3 + 2] = vertexPositions[i][2];
+            this._world.scene.add(lAxis);
+            this._world.scene.add(aAxis);
+            this._world.scene.add(bAxis);
         }
-        planeGeometry.addAttribute('position', new THREE.BufferAttribute(vertices, 3));
-        var plane = new THREE.Mesh(planeGeometry, material);
-
-        this._world.scene.add(plane);
     },
 
     /**
      * Takes in an array of colours and plots them in the unit cube, coloured appropriately.
      * Currently plots as constant radius spheres.
      */
-    plotRGBColors: function() {
+    plotColors: function() {
         var pointMeshes = []; // Collection of point meshes
         var combinedGeometry, combinedMaterial, combinedMesh; // Geom, material, and mesh for all points as a collective
         var maxSphereRadius = 0.1;
@@ -217,26 +172,55 @@ View.prototype = {
 
         colorDict = [];
         var colors  = this._model._colors;
-        for (var i = 0; i < colors.length; i++) {
-            var quantisedColor = colors[i].getQuantisedRgbColor();
 
-            var found = false;
-            var count = 0;
+        if (this._colorSpace == Color.rgbEnum) {
+            console.log("Rgb path");
 
-            while (!found && count < colorDict.length) {
-                if (quantisedColor.r == colorDict[count].key.rgb.r && quantisedColor.g == colorDict[count].key.rgb.g && quantisedColor.b == colorDict[count].key.rgb.b) {
-                    colorDict[count].value += 1;
-                    found = true;
+            for (var i = 0; i < colors.length; i++) {
+                var quantisedColor = colors[i].quantiseRgb();
+
+                var found = false;
+                var count = 0;
+
+                while (!found && count < colorDict.length) {
+                    if (quantisedColor.r == colorDict[count].key.getRgb().r && quantisedColor.g == colorDict[count].key.getRgb().g && quantisedColor.b == colorDict[count].key.getRgb().b) {
+                        colorDict[count].value += 1;
+                        found = true;
+                    }
+                    count += 1;
                 }
-                count += 1;
+                if (!found) {
+                    var newColor = new Color();
+                    newColor.setRgb(quantisedColor.r, quantisedColor.g, quantisedColor.b);
+                    colorDict.push({
+                        key: newColor,
+                        value: 1
+                    })
+                }
             }
-            if (!found) {
-                var newColor = new Color();
-                newColor.setRGB(quantisedColor.r, quantisedColor.g, quantisedColor.b);
-                colorDict.push({
-                    key: newColor,
-                    value: 1
-                })
+        } else if (this._colorSpace == Color.labEnum) {
+            console.log("Lab path");
+
+            for (var i = 0; i < colors.length; i++) {
+                var quantisedColor = colors[i].quantiseLab();
+
+                var found = false;
+                var count = 0;
+                while (!found && count < colorDict.length) {
+                    if (quantisedColor.l == colorDict[count].key.getLab().l && quantisedColor.a == colorDict[count].key.getLab().a && quantisedColor.b == colorDict[count].key.getLab().b) {
+                        colorDict[count].value += 1;
+                        found = true;
+                    }
+                    count += 1;
+                }
+                if (!found) {
+                    var newColor = new Color();
+                    newColor.setLab(quantisedColor.l, quantisedColor.a, quantisedColor.b); // TODO: Just use an array/object?
+                    colorDict.push({
+                        key: newColor,
+                        value: 1
+                    })
+                }
             }
         }
 
@@ -271,7 +255,11 @@ View.prototype = {
                 var pointMesh = new THREE.Mesh(new THREE.SphereGeometry(sphereRadius), new THREE.MeshBasicMaterial()); // Changes made to this material will have no effect on the objects
 
                 // Set the position of the mesh according to a colour
-                var position = this.findPositionOfRGBColor(colorDict[i].key.rgb);
+                if (this._colorSpace == Color.rgbEnum) {
+                    var position = this.findPositionOfRgbColor(colorDict[i].key.getRgb());
+                } else if (this._colorSpace == Color.labEnum) {
+                    var position = this.findPositionOfLabColor(colorDict[i].key.getLab());
+                }
                 pointMesh.position.x = position.x; // This works, but pointMesh.position = position does not
                 pointMesh.position.y = position.y;
                 pointMesh.position.z = position.z;
@@ -280,105 +268,22 @@ View.prototype = {
             }
         }
 
-        // Combine point meshes into a single mesh
-        combinedGeometry = this.mergeMeshes(pointMeshes);
-        combinedMaterial = new THREE.ShaderMaterial({
-            vertexShader: $("#vertexShaderRgb").text(),
-            fragmentShader: $("#fragmentShaderRgb").text(),
-            wireframe: true
-        });
-        combinedMesh = new THREE.Mesh(combinedGeometry, combinedMaterial);
-
-        // Add combined mesh to the scene (i.e. plot points on the histogram)
-        this._world.scene.add(combinedMesh);
-    },
-
-    plotLabColors: function() {
-        var pointMeshes = []; // Collection of point meshes
-        var combinedGeometry, combinedMaterial, combinedMesh; // Geom, material, and mesh for all points as a collective
-        var maxSphereRadius = 0.1;
-        var minSphereRadius = 0.001;
-
-        // Remove previous colour plots from the scene
-        this.clearHistogram();
-
-        colorDict = [];
-        var colors  = this._model._colors;
-        for (var i = 0; i < colors.length; i++) {
-            var quantisedColor = colors[i].getQuantisedLabColor();
-
-            var found = false;
-            var count = 0;
-            while (!found && count < colorDict.length) {
-                if (quantisedColor.l == colorDict[count].key.lab.l && quantisedColor.a == colorDict[count].key.lab.a && quantisedColor.b == colorDict[count].key.lab.b) {
-                    colorDict[count].value += 1;
-                    found = true;
-                }
-                count += 1;
-            }
-            if (!found) {
-                var newColor = new Color();
-                newColor.setLab(quantisedColor.l, quantisedColor.a, quantisedColor.b); // TODO: Just use an array/object?
-                colorDict.push({
-                    key: newColor,
-                    value: 1
-                })
-            }
-        }
-
-        // Find min and max value in colorDict
-        var maxValue = colorDict[0].value;
-        var minValue = colorDict[0].value;
-        for (var i = 0; i < colorDict.length; i++) {
-            if (colorDict[i].value > maxValue) {
-                maxValue = colorDict[i].value;
-            }
-            if (colorDict[i].value < minValue) {
-                minValue = colorDict[i].value;
-            }
-            // TODO: Prevent 0 value colours from being in this list
-        }
-        console.log("Max value: " + maxValue);
-        console.log("Min value: " + minValue);
-
-        // Create mesh for each colour (with a value greater than 0)
-        for (var i = 0; i < colorDict.length; i++) {
-            if (colorDict[i].value > 0) {
-                // Uses ln(x+1) to scale large results down so they don't dwarf others
-                // x+1 ensures that y is always postive for x (i.e. when value = 1, ln != 0)
-                var scaledPercentageOfMaxValue = Math.log(colorDict[i].value + 1) / Math.log(maxValue + 1);
-                var sphereRadius = scaledPercentageOfMaxValue * maxSphereRadius;
-
-                // Ensure small values are still visible
-                if (sphereRadius < minSphereRadius) {
-                    sphereRadius = minSphereRadius;
-                }
-
-                var pointMesh = new THREE.Mesh(new THREE.SphereGeometry(sphereRadius), new THREE.MeshBasicMaterial()); // Changes made to this material will have no effect on the objects
-
-                // Set the position of the mesh according to a colour
-                var position = this.findPositionOfLabColor(colorDict[i].key.lab);
-                //console.log("Position: ", position);
-                if (position.x < 0) {
-                    console.log("x < 0")
-                }
-                if (colorDict[i].key.lab.a < 0) {
-                    console.log("a < 0")
-                }
-
-                pointMesh.position.x = position.x; // This works, but pointMesh.position = position does not
-                pointMesh.position.y = position.y;
-                pointMesh.position.z = position.z;
-
-                pointMeshes.push(pointMesh);
-            }
+        // Select appropriate shaders
+        if (this._colorSpace == Color.rgbEnum) {
+            console.log("Rgb shader");
+            var vShader = $('#vertexShaderRgb').text();
+            var fShader = $('#fragmentShaderRgb').text();
+        } else if (this._colorSpace == Color.labEnum) {
+            console.log("Rgb shader");
+            var vShader = $('#vertexShaderLab').text();
+            var fShader = $('#fragmentShaderLab').text();
         }
 
         // Combine point meshes into a single mesh
         combinedGeometry = this.mergeMeshes(pointMeshes);
         combinedMaterial = new THREE.ShaderMaterial({
-            vertexShader: $("#vertexShaderRgb").text(),
-            fragmentShader: $("#fragmentShaderRgb").text(),
+            vertexShader: vShader,
+            fragmentShader: fShader,
             wireframe: true
         });
         combinedMesh = new THREE.Mesh(combinedGeometry, combinedMaterial);
@@ -408,7 +313,7 @@ View.prototype = {
      * @param color The colour to interpret as a position
      * @returns {THREE.Vector3} The inferred position of the given colour
      */
-    findPositionOfRGBColor: function(color) {
+    findPositionOfRgbColor: function(color) {
         return new THREE.Vector3(color.r - 0.5, color.g - 0.5, color.b- 0.5); // .r/.g/.b have range 0-1
     },
 
