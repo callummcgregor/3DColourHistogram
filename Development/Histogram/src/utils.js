@@ -1,44 +1,40 @@
 /**
- * A file of utility classes and functions
+ * Some utility classes
  */
 
 /**
- * A simple custom exception
- * Allows a message to be set and retrieved
+ * A simple exception
  *
- * @param message The message for this instance of the exception
+ * @param message An informative error message
  */
 function Exception(message) {
-    this._message = message;
-}
+    this.message = message;
 
-Exception.prototype = {
-    toString: function() {
-        return this._message;
-    }
-};
+    this.toString = function() {
+        return this.message;
+    };
+}
 
 /**
- * An event class. Registered listeners are notified when the event is fired
+ * An implementation of a basic event class
+ * Registered listeners are notified when the event is fired and passed arguments attached to the event
  */
 function CustomEvent(sender) {
-    this._sender = sender;
-    this._listeners = [];
-}
+    var _sender = sender;
+    var _listeners = [];
 
-CustomEvent.prototype = {
-    attach: function(listener) {
-        this._listeners.push(listener);
-    },
+    this.attach = function(listener) {
+        _listeners.push(listener);
+    };
 
-    notify: function(args) {
+    this.notify = function(args) {
         var index;
 
-        for (index = 0; index < this._listeners.length; index++) {
-            this._listeners[index](this._sender, args);
+        for (index = 0; index < _listeners.length; index++) {
+            _listeners[index](_sender, args);
         }
-    }
-};
+    };
+}
 
 /**
  * QUnit-assert-close plugin was unsuccessful, so I defined my own
@@ -64,8 +60,10 @@ function assertClose(assert, actual, expected, tolerance, message) {
  */
 function Color() {
     // Private variables
-    var rgb = null;
-    var lab = null;
+    var _rgb = null;
+    var _lab = null;
+    var _hsl = null;
+    var _this = this;
 
     // Public methods
     /**
@@ -78,12 +76,13 @@ function Color() {
         if (r < 0.0 || r > 1.0 || g < 0.0 || g > 1.0 || b < 0.0 || b > 1.0) {
             throw new Exception("Inputted values must be in range 0-1 (inclusive)"); // TODO: Give erroneous values
         } else {
-            rgb = {
+            _rgb = {
                 r: r,
                 g: g,
                 b: b
             };
-            this.rgbToLab();
+            this.rgbToLab(); // Also calculate CIE-Lab and HSL equivalents
+            rgbToHsl();
         }
     };
 
@@ -91,21 +90,43 @@ function Color() {
         if (l < 0.0 || l > 100.0 || a < -128.0 || a > 127.0 || b < -128.0 || b > 127.0) {
             throw new Exception("Inputted values outside accepted ranges"); // TODO: Give erroneous values
         } else {
-            lab = {
+            _lab = {
                 l: l,
                 a: a,
                 b: b
             };
-            this.labToRgb();
+            this.labToRgb(); // Also calculate RGB and HSL equivalents
+            rgbToHsl();
         }
     };
 
+    this.setHsl = function(h, s, l) {
+        _hsl = {
+            h: h,
+            s: s,
+            l: l
+        };
+    };
+
     this.getRgb = function() {
-        return rgb;
+        return _rgb;
     };
 
     this.getLab = function() {
-        return lab;
+        return _lab;
+    };
+
+    /**
+     * Used only in testing
+     */
+    this.getHsl = function() {
+        return _hsl
+    };
+
+    this.clone = function() {
+        var newColor = new Color();
+        newColor.setRgb(_rgb.r, _rgb.g, _rgb.b);
+        return newColor;
     };
 
     /**
@@ -117,26 +138,34 @@ function Color() {
      */
     this.quantiseRgb = function() {
         return {
-            r: Math.round((rgb.r * 255) / 17) / 15,
-            g: Math.round((rgb.g * 255) / 17) / 15,
-            b: Math.round((rgb.b * 255) / 17) / 15
+            r: Math.round((_rgb.r * 255) / 17) / 15,
+            g: Math.round((_rgb.g * 255) / 17) / 15,
+            b: Math.round((_rgb.b * 255) / 17) / 15
         }
     };
 
     this.quantiseLab = function() {
         return {
-            l: Math.round((lab.l) / 10) * 10,
-            a: Math.round((lab.a) / 17) * 15,
-            b: Math.round((lab.b) / 17) * 15
+            l: Math.round((_lab.l) / 10) * 10,
+            a: Math.round((_lab.a) / 17) * 15,
+            b: Math.round((_lab.b) / 17) * 15
         }
+    };
+
+    this.changeBrightness = function(adjustment) {
+        rgbToHsl();
+        //_hsl.l += _hsl.l * (adjustment / 10);
+        _hsl.l += 0.1 * adjustment;
+        hslToRgb();
+        //this.setRgb(rgb.r, rgb.g, rgb.b);
     };
 
     this.rgbToLab = function() {
         // First convert sRGB to CIE-XYZ
         // Original formula converts from 0-255 to 0-1 range, but my values are already there
-        var varR = rgbToXyzHelper(rgb.r) * 100;
-        var varG = rgbToXyzHelper(rgb.g) * 100;
-        var varB = rgbToXyzHelper(rgb.b) * 100;
+        var varR = _rgbToXyzHelper(_rgb.r) * 100;
+        var varG = _rgbToXyzHelper(_rgb.g) * 100;
+        var varB = _rgbToXyzHelper(_rgb.b) * 100;
 
         var xyz = {
             X: (varR * 0.4124) + (varG * 0.3576) + (varB * 0.1805),
@@ -145,11 +174,14 @@ function Color() {
         };
 
         // Then convert CIE-XYZ to CIE-Lab
-        var varX = xyzToLabHelper(xyz.X /  95.047);
-        var varY = xyzToLabHelper(xyz.Y / 100.000);
-        var varZ = xyzToLabHelper(xyz.Z / 108.883);
+        var varX = _xyzToLabHelper(xyz.X /  95.047);
+        var varY = _xyzToLabHelper(xyz.Y / 100.000);
+        var varZ = _xyzToLabHelper(xyz.Z / 108.883);
 
-        lab = {
+        //this.setLab((116 * varY) - 16,
+        //            500 * (varX - varY),
+        //            200 * (varY - varZ));
+        _lab = {
             l: (116 * varY) - 16,
             a: 500 * (varX - varY),
             b: 200 * (varY - varZ)
@@ -158,14 +190,14 @@ function Color() {
 
     this.labToRgb = function() {
         // First convert from CIE-L*a*b* to CIE-XYZ
-        varY = (lab.l + 16) / 116;
-        varX = lab.a / 500 + varY;
-        varZ = varY - lab.b / 200;
+        var varY = (_lab.l + 16) / 116;
+        var varX = _lab.a / 500 + varY;
+        var varZ = varY - _lab.b / 200;
 
         var xyz = {
-            X:  95.047 * labToXyzHelper(varX),
-            Y: 100.0   * labToXyzHelper(varY),
-            Z: 108.883 * labToXyzHelper(varZ)
+            X:  95.047 * _labToXyzHelper(varX),
+            Y: 100.000 * _labToXyzHelper(varY),
+            Z: 108.883 * _labToXyzHelper(varZ)
         };
 
         // Then convert from CIE-XYZ to sRGB
@@ -196,15 +228,98 @@ function Color() {
             varB = 1;
         }
         // Original formula then converts to 0-255 range but I keep it in 0-1 range
-        rgb = {
-            r: xyzTosRgbHelper(varR),
-            g: xyzTosRgbHelper(varG),
-            b: xyzTosRgbHelper(varB)
+        _rgb = {
+            r: _xyzTosRgbHelper(varR),
+            g: _xyzTosRgbHelper(varG),
+            b: _xyzTosRgbHelper(varB)
         };
+        //this.setRgb(_xyzTosRgbHelper(varR), _xyzTosRgbHelper(varG), _xyzTosRgbHelper(varB));
+    };
+
+    var rgbToHsl = function() {
+        var min = Math.min(_rgb.r, _rgb.g, _rgb.b);
+        var max = Math.max(_rgb.r, _rgb.g, _rgb.b);
+        var delta = max - min;
+
+        var h, s;
+        var l = (max + min) / 2;
+
+        if (delta == 0) {
+            h = 0;
+            s = 0;
+        } else {
+            if (l < 0.5) {
+                s = delta / (max + min);
+            } else {
+                s = delta / (2 - max - min)
+            }
+
+            var deltaR = (((max - _rgb.r) / 6) + (delta / 2)) / delta;
+            var deltaG = (((max - _rgb.g) / 6) + (delta / 2)) / delta;
+            var deltaB = (((max - _rgb.b) / 6) + (delta / 2)) / delta;
+
+            if (_rgb.r == max) {
+                h = deltaB - deltaG;
+            } else if (_rgb.g == max) {
+                h = (1/3) + deltaR - deltaB;
+            } else if (_rgb.b == max) {
+                h = (2/3) + deltaG - deltaR;
+            }
+
+            if (h < 0) {
+                h += 1;
+            }
+            if (h > 1) {
+                h -= 1;
+            }
+        }
+
+        _this.setHsl(h, s, l);
+    };
+
+    var hslToRgb = function() {
+        var v1, v2;
+        var r, g, b;
+
+        if (_hsl.s == 0) {
+            r = _hsl.l;
+            g = _hsl.l;
+            b = _hsl.l;
+        } else {
+            if (_hsl.l < 0.5) {
+                v2 = _hsl.l * (1 + _hsl.s);
+            } else {
+                v2 = (_hsl.l + _hsl.s) - (_hsl.s * _hsl.l);
+            }
+
+            v1 = (2 * _hsl.l) - v2;
+
+            r = hslToRgbHelper(v1, v2, _hsl.h + (1/3));
+            g = hslToRgbHelper(v1, v2, _hsl.h);
+            b = hslToRgbHelper(v1, v2, _hsl.h - (1/3));
+        }
+
+        if (r > 1) {
+            r = 1;
+        } else if (r < 0) {
+            r = 0;
+        }
+        if (g > 1) {
+            g = 1;
+        } else if (g < 0) {
+            g = 0;
+        }
+        if (b > 1) {
+            b = 1;
+        } else if (b < 0) {
+            b = 0;
+        }
+        //console.log(r + ", " + g + ", " + b);
+        _this.setRgb(r, g, b);
     };
 
     // Private methods
-    var rgbToXyzHelper = function(channel) {
+    var _rgbToXyzHelper = function(channel) {
         if (channel > 0.04045) {
             channel = Math.pow((channel + 0.055) / 1.055, 2.4)
         } else {
@@ -213,7 +328,7 @@ function Color() {
         return channel
     };
 
-    var xyzToLabHelper = function(channel) {
+    var _xyzToLabHelper = function(channel) {
         if (channel > 0.00856) {
             return Math.pow(channel, 1/3);
         } else {
@@ -221,7 +336,7 @@ function Color() {
         }
     };
 
-    var labToXyzHelper = function(channel) {
+    var _labToXyzHelper = function(channel) {
         if (Math.pow(channel, 3) > 0.008856) {
             return Math.pow(channel, 3);
         } else {
@@ -229,16 +344,35 @@ function Color() {
         }
     };
 
-    var xyzTosRgbHelper = function(channel) {
+    var _xyzTosRgbHelper = function(channel) {
         if (channel > 0.0031308) {
             return 1.055 * Math.pow(channel, 1/2.4) - 0.055;
         } else {
             return 12.92 * channel;
         }
     };
+
+    var hslToRgbHelper = function(v1, v2, vH) {
+        if (vH < 0) {
+            vH +=1;
+        }
+        if (vH > 1) {
+            vH -= 1;
+        }
+
+        if ((6 * vH) < 1) {
+            return v1 + (v2 - v1) * 6 * vH;
+        } else if ((2 * vH) < 1) {
+            return v2;
+        } else if ((3 * vH) < 2) {
+            return v1 + (v2 - v1) * 6 * ((2/3) - vH);
+        } else {
+            return v1;
+        }
+    };
 }
 
 // Static variables
-Color.rgbEnum = "srgb";
-Color.labEnum = "cie-lab";
+Color.RGB = "srgb";
+Color.LAB = "cie-lab";
 

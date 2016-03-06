@@ -4,7 +4,11 @@ $(function() {
         'imageUploadButton': $('#file_input'),
         'imageCanvas': $('#image_canvas'),
         'constructLutButton': $('#constructLut'),
-        'colorSpaceRadio': $('[name="color_space"]')
+        'colorSpaceRadio': $('[name="color_space"]'),
+        'colorControls': $('[name="color_controls"]'),
+        'brightness': $('#brightness'),
+        'contrast': $('#contrast'),
+        'saturation': $('#saturation')
     });
     var controller = new Controller(model, view);
 

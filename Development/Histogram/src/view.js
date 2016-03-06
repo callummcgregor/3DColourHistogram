@@ -1,86 +1,104 @@
 /**
- * Define View and its fields
+ * The View
  *
  * @param model The model, listened to and data fetched from when it updates
  * @param elements HTML elements from the webpage
  */
 function View(model, elements) {
-    this._model = model;
-    this._elements = elements;
-    this._world = {};
-    this._colorSpace = Color.rgbEnum;
+    // Private fields
+    var _model = model;
+    var _elements = elements;
+    var _world = {};
+    var _colorSpace = Color.RGB;
+    var _this = this; // Allows access to public fields from private methods
 
+    // Public fields
     this.imageUploaded = new CustomEvent(this);
     this.imageDisplayed = new CustomEvent(this);
 
-    var _this = this;
-
-    // Listeners on the model
-    this._model.imageReady.attach(function(sender, args) {
-        _this.displayImage(args);
+    // Attach listeners to the model and elements
+    _model.imageReady.attach(function(sender, args) {
+        displayImage(args);
     });
 
-    this._model.colorsReady.attach(function(sender, args) {
-        _this.plotColors();
+    _model.colorsReady.attach(function() {
+        plotColors();
     });
 
-    this._elements.imageUploadButton.change(function(e) {
+    _elements.imageUploadButton.change(function(e) {
         var file = e.target.files[0];
         if (file) {
             _this.imageUploaded.notify(file);
         }
     });
 
-    this._elements.colorSpaceRadio.change(function(e) {
+    _elements.colorControls.change(function(e) {
+        console.log(e.target.id + " changed to " + e.target.value);
+        _model.applyColorChanges(e.target.id, e.target.value);
+    });
+
+    _elements.colorSpaceRadio.change(function(e) {
+        var space = e.target.value;
+
         console.log("Colour space changed to " + e.target.value.toString());
 
-        if (e.target.value != Color.rgbEnum && e.target.value != Color.labEnum) {
+        if (space != Color.RGB && space != Color.LAB) {
             throw new Exception("Unrecognised color space, " + e.target.value);
         } else {
-            _this._colorSpace = e.target.value;
+            _colorSpace = space;
         }
 
-        _this.createWireframeCube();
-        if (_this._model._colors != null) {
-            _this.plotColors();
+        if (space == Color.RGB) {
+            drawRgbSpace();
+        } else if (space == Color.LAB) {
+            drawLabSpace();
         }
+
+        plotColors();
     });
-}
 
-View.prototype = {
-    show: function() {
-        this.renderColourSpace();
-    },
+    // Public methods
+    this.show = function() {
+        initCanvas();
+    };
 
-    displayImage: function(image) {
+    // Private methods
+    var displayImage = function(image) {
         var imageCanvas = document.getElementById("image_canvas");
         var context = imageCanvas.getContext("2d");
 
         context.drawImage(image, 0, 0);
 
-        this.imageDisplayed.notify(context);
-    },
+        _this.imageDisplayed.notify(context);
+    };
 
-    renderColourSpace: function() {
+    /**
+     * Sets up the canvas for the first time and draws the RGB cube by default
+     */
+    var initCanvas = function() {
         // Set up the Three.js variables, encapsulated in a world object
-        var canvasWidth = $("#histogram_holder").width();
-        var canvasHeight = $("#histogram_holder").height();
+        var canvas = $("#histogram_holder");
+        var canvasWidth = canvas.width();
+        var canvasHeight = canvas.height();
 
-        this._world.scene = new THREE.Scene();
-        this._world.camera = new THREE.PerspectiveCamera(75, canvasWidth/canvasHeight, 0.1, 1000);
-        this._world.controls = new THREE.OrbitControls(this._world.camera);
-        this._world.renderer = new THREE.WebGLRenderer();
-        this._world.renderer.setSize(canvasWidth, canvasHeight);
-        this._world.renderer.setClearColor(0x6d6d6d);
-        this._world.camera.position.z = 2;
+        _world.scene = new THREE.Scene();
+        _world.camera = new THREE.PerspectiveCamera(75, canvasWidth/canvasHeight, 0.1, 1000);
+        if (document.getElementById("histogram_holder") != null) {
+            _world.controls = new THREE.OrbitControls(_world.camera, document.getElementById("histogram_holder")); // Second parameter limits controls to the DOM object passed in
+        } else {
+            _world.controls = new THREE.OrbitControls(_world.camera); // So the tests don't trip up when there are no DOM elements
+        }
+        _world.renderer = new THREE.WebGLRenderer();
+        _world.renderer.setSize(canvasWidth, canvasHeight);
+        _world.renderer.setClearColor(0x6d6d6d);
+        _world.camera.position.z = 2;
 
         // Append the Three.js rendered to the DOM
-        var canvas = $("#histogram_holder");
-        canvas.append(this._world.renderer.domElement);
+        canvas.append(_world.renderer.domElement);
 
-        this.createWireframeCube();
-        this.render();
-    },
+        drawRgbSpace(); // TODO: Draw which ever space is selected in radio button, in case user changes this before the canvas is instantiated
+        render();
+    };
 
     /**
      * Create a wireframe cube (without diagonals drawn), coloured with R, G, and B being 0 - 1 along
@@ -88,26 +106,16 @@ View.prototype = {
      *
      * Note: Worth considering putting entire cube into a LineSegments geometry for the sake of performance
      */
-    createWireframeCube: function() {
-        this.clearCanvas();
-
-        // Select appropriate shaders
-        if (this._colorSpace == Color.rgbEnum) {
-            console.log("Rgb shader");
-            var vShader = $('#vertexShaderRgb').text();
-            var fShader = $('#fragmentShaderRgb').text();
-        } else if (this._colorSpace == Color.labEnum) {
-            console.log("Rgb shader");
-            var vShader = $('#vertexShaderLab').text();
-            var fShader = $('#fragmentShaderLab').text();
-        }
+    var drawRgbSpace = function() {
+        clearCanvas();
 
         // Create material
         var material = new THREE.ShaderMaterial({
-            vertexShader: vShader,
-            fragmentShader: fShader
+            vertexShader: $('#vertexShaderRgb').text(),
+            fragmentShader: $('#fragmentShaderRgb').text()
         });
 
+        // Create wireframe cube
         var sidesGeometry = new THREE.Geometry();
         sidesGeometry.vertices.push(new THREE.Vector3(-0.5, -0.5, -0.5)); // Black
         sidesGeometry.vertices.push(new THREE.Vector3(-0.5,  0.5, -0.5)); // Green
@@ -119,7 +127,7 @@ View.prototype = {
         sidesGeometry.vertices.push(new THREE.Vector3( 0.5,  0.5,  0.5)); // White
         sidesGeometry.vertices.push(new THREE.Vector3( 0.5, -0.5,  0.5)); // Magenta
         sidesGeometry.vertices.push(new THREE.Vector3( 0.5, -0.5, -0.5)); // Red
-        var sides = new THREE.Line( sidesGeometry, material );
+        var sides = new THREE.Line(sidesGeometry, material);
 
         var connectingEdgesGeometry = new THREE.Geometry();
         connectingEdgesGeometry.vertices.push(new THREE.Vector3( 0.5,  0.5, -0.5)); // Yellow
@@ -130,50 +138,56 @@ View.prototype = {
         connectingEdgesGeometry.vertices.push(new THREE.Vector3(-0.5, -0.5,  0.5)); // Blue
         var connectingEdges = new THREE.LineSegments(connectingEdgesGeometry, material);
 
-        this._world.scene.add(sides);
-        this._world.scene.add(connectingEdges);
+        _world.scene.add(sides);
+        _world.scene.add(connectingEdges);
+    };
 
-        // If Lab, also plot the axes
-        if (this._colorSpace == Color.labEnum) {
-            // Create axes
-            var lAxisGeometry = new THREE.Geometry();
-            lAxisGeometry.vertices.push(new THREE.Vector3(0.0, -0.5, 0.0)); // L = 0
-            lAxisGeometry.vertices.push(new THREE.Vector3(0.0,  0.5, 0.0)); // L = 100
-            var lAxis = new THREE.Line(lAxisGeometry, material);
+    var drawLabSpace = function() {
+        clearCanvas();
 
-            var aAxisGeometry = new THREE.Geometry();
-            aAxisGeometry.vertices.push(new THREE.Vector3(-0.5, 0.0, 0.0)); // a-
-            aAxisGeometry.vertices.push(new THREE.Vector3( 0.5, 0.0, 0.0)); // a+
-            var aAxis = new THREE.Line(aAxisGeometry, material);
+        // Create material
+        var material = new THREE.ShaderMaterial({
+            vertexShader: $('#vertexShaderLab').text(),
+            fragmentShader: $('#fragmentShaderLab').text()
+        });
 
-            var bAxisGeometry = new THREE.Geometry();
-            bAxisGeometry.vertices.push(new THREE.Vector3(0.0, 0.0, -0.5)); // b-
-            bAxisGeometry.vertices.push(new THREE.Vector3(0.0, 0.0,  0.5)); // b+
-            var bAxis = new THREE.Line(bAxisGeometry, material);
+        // Create axes
+        var lAxisGeometry = new THREE.Geometry();
+        lAxisGeometry.vertices.push(new THREE.Vector3(0.0, -0.5, 0.0)); // L = 0
+        lAxisGeometry.vertices.push(new THREE.Vector3(0.0,  0.5, 0.0)); // L = 100
+        var lAxis = new THREE.Line(lAxisGeometry, material);
 
-            this._world.scene.add(lAxis);
-            this._world.scene.add(aAxis);
-            this._world.scene.add(bAxis);
-        }
-    },
+        var aAxisGeometry = new THREE.Geometry();
+        aAxisGeometry.vertices.push(new THREE.Vector3(-0.5, 0.0, 0.0)); // a-
+        aAxisGeometry.vertices.push(new THREE.Vector3( 0.5, 0.0, 0.0)); // a+
+        var aAxis = new THREE.Line(aAxisGeometry, material);
 
-    /**
-     * Takes in an array of colours and plots them in the unit cube, coloured appropriately.
-     * Currently plots as constant radius spheres.
-     */
-    plotColors: function() {
+        var bAxisGeometry = new THREE.Geometry();
+        bAxisGeometry.vertices.push(new THREE.Vector3(0.0, 0.0, -0.5)); // b-
+        bAxisGeometry.vertices.push(new THREE.Vector3(0.0, 0.0,  0.5)); // b+
+        var bAxis = new THREE.Line(bAxisGeometry, material);
+
+        _world.scene.add(lAxis);
+        _world.scene.add(aAxis);
+        _world.scene.add(bAxis);
+    };
+
+    var plotColors = function() {
+        console.log("Plotting colours");
+
         var pointMeshes = []; // Collection of point meshes
         var combinedGeometry, combinedMaterial, combinedMesh; // Geom, material, and mesh for all points as a collective
         var maxSphereRadius = 0.1;
         var minSphereRadius = 0.001;
 
         // Remove previous colour plots from the scene
-        this.clearHistogram();
+        clearHistogram();
 
         colorDict = [];
-        var colors  = this._model._colors;
+        var colors  = _model.getColors();
 
-        if (this._colorSpace == Color.rgbEnum) {
+        // TODO: Restructure if/else to minimise duplicate code
+        if (_colorSpace == Color.RGB) {
             console.log("Rgb path");
 
             for (var i = 0; i < colors.length; i++) {
@@ -198,7 +212,7 @@ View.prototype = {
                     })
                 }
             }
-        } else if (this._colorSpace == Color.labEnum) {
+        } else if (_colorSpace == Color.LAB) {
             console.log("Lab path");
 
             for (var i = 0; i < colors.length; i++) {
@@ -255,10 +269,11 @@ View.prototype = {
                 var pointMesh = new THREE.Mesh(new THREE.SphereGeometry(sphereRadius), new THREE.MeshBasicMaterial()); // Changes made to this material will have no effect on the objects
 
                 // Set the position of the mesh according to a colour
-                if (this._colorSpace == Color.rgbEnum) {
-                    var position = this.findPositionOfRgbColor(colorDict[i].key.getRgb());
-                } else if (this._colorSpace == Color.labEnum) {
-                    var position = this.findPositionOfLabColor(colorDict[i].key.getLab());
+                var position;
+                if (_colorSpace == Color.RGB) {
+                    position = findPositionOfRgbColor(colorDict[i].key.getRgb());
+                } else if (_colorSpace == Color.LAB) {
+                    position = findPositionOfLabColor(colorDict[i].key.getLab());
                 }
                 pointMesh.position.x = position.x; // This works, but pointMesh.position = position does not
                 pointMesh.position.y = position.y;
@@ -269,18 +284,18 @@ View.prototype = {
         }
 
         // Select appropriate shaders
-        if (this._colorSpace == Color.rgbEnum) {
-            console.log("Rgb shader");
-            var vShader = $('#vertexShaderRgb').text();
-            var fShader = $('#fragmentShaderRgb').text();
-        } else if (this._colorSpace == Color.labEnum) {
-            console.log("Rgb shader");
-            var vShader = $('#vertexShaderLab').text();
-            var fShader = $('#fragmentShaderLab').text();
+        var vShader;
+        var fShader;
+        if (_colorSpace == Color.RGB) {
+            vShader = $('#vertexShaderRgb').text();
+            fShader = $('#fragmentShaderRgb').text();
+        } else if (_colorSpace == Color.LAB) {
+            vShader = $('#vertexShaderLab').text();
+            fShader = $('#fragmentShaderLab').text();
         }
 
         // Combine point meshes into a single mesh
-        combinedGeometry = this.mergeMeshes(pointMeshes);
+        combinedGeometry = mergeMeshes(pointMeshes);
         combinedMaterial = new THREE.ShaderMaterial({
             vertexShader: vShader,
             fragmentShader: fShader,
@@ -289,22 +304,22 @@ View.prototype = {
         combinedMesh = new THREE.Mesh(combinedGeometry, combinedMaterial);
 
         // Add combined mesh to the scene (i.e. plot points on the histogram)
-        this._world.scene.add(combinedMesh);
-    },
+        _world.scene.add(combinedMesh);
+    };
 
-    clearHistogram: function() {
-        for(var i = this._world.scene.children.length - 1; i >= 0; i--) {
-            if (this._world.scene.children[i].type == "Mesh") { // Assuming colour plots are always of the type "Mesh"
-                this._world.scene.remove(this._world.scene.children[i]);
+    var clearHistogram = function() {
+        for(var i = _world.scene.children.length - 1; i >= 0; i--) {
+            if (_world.scene.children[i].type == "Mesh") { // Assuming colour plots are always of the type "Mesh"
+                _world.scene.remove(_world.scene.children[i]);
             }
         }
-    },
+    };
 
-    clearCanvas: function() {
-        for(var i = this._world.scene.children.length - 1; i >= 0; i--) {
-            this._world.scene.remove(this._world.scene.children[i]);
+    var clearCanvas = function() {
+        for(var i = _world.scene.children.length - 1; i >= 0; i--) {
+            _world.scene.remove(_world.scene.children[i]);
         }
-    },
+    };
 
     /**
      * Interpret a colour as a position in the 3D space
@@ -313,13 +328,13 @@ View.prototype = {
      * @param color The colour to interpret as a position
      * @returns {THREE.Vector3} The inferred position of the given colour
      */
-    findPositionOfRgbColor: function(color) {
+    var findPositionOfRgbColor = function(color) {
         return new THREE.Vector3(color.r - 0.5, color.g - 0.5, color.b- 0.5); // .r/.g/.b have range 0-1
-    },
+    };
 
-    findPositionOfLabColor: function(color) {
+    var findPositionOfLabColor = function(color) {
         return new THREE.Vector3(color.a / 256.0, (color.l / 100.0) - 0.5, color.b / 256.0);
-    },
+    };
 
     /**
      * Takes an array of meshes and merges them together for performance purposes
@@ -327,30 +342,29 @@ View.prototype = {
      * @param meshes An array of meshes to be merged into one
      * @return {*} The combined meshes
      */
-    mergeMeshes: function(meshes) {
+    var mergeMeshes = function(meshes) {
         var combined = new THREE.Geometry();
 
         for ( var i = 0; i < meshes.length; i++ ) {
             meshes[i].updateMatrix();
-            combined.merge( meshes[i].geometry, meshes[i].matrix );
+            combined.merge(meshes[i].geometry, meshes[i].matrix);
         }
 
         return combined;
-    },
+    };
 
     /**
      * Responsible for redrawing the scene each frame
-     *
-     * @param world The world being rendered
      */
-    render: function() {
-        this._world.controls.update();
-        this._world.renderer.render(this._world.scene, this._world.camera);
+    var render = function() {
+        _world.controls.update();
+        _world.renderer.render(_world.scene, _world.camera);
 
-        var _this = this;
+        //var _this = this;
         // Anom. function used because render() has parameters
-        requestAnimationFrame( function() {
-            _this.render();
-        } );
-    }
-};
+        requestAnimationFrame(function () {
+            //_this.render();
+            render();
+        });
+    };
+}

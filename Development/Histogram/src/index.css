@@ -1,6 +1,12 @@
-#input_section {
+#user_inputs_div {
     background-color: #dddddd;
     text-align: center;
+    padding: 5px;
+}
+
+#color_controls_div {
+    background-color: #dddddd;
+    text-align: left;
     padding: 5px;
 }
 

@@ -89,10 +89,21 @@
     <script src="utils.js"></script>
 
     <!-- HTML Elements start here !-->
-    <div id="input_section">
+    <div id="user_inputs_div">
         <input type="file" id="file_input"/>
         <input type="radio" name="color_space" value="srgb" checked/>sRGB
         <input type="radio" name="color_space" value="cie-lab"/>CIE-Lab
+        <br/>
+        <div id="color_controls_div">
+            Brightness:
+            <input type="range" name="color_controls" id="brightness" min="-10" max="10">
+            <br/>
+            Contrast:
+            <input type="range" name="color_controls" id="contrast" min="-10" max="10">
+            <br/>
+            Saturation:
+            <input type="range" name="color_controls" id="saturation" min="-10" max="10">
+        </div>
     </div>
     <div id="image_holder">
         <canvas id="image_canvas" width="200" height="200"></canvas>
