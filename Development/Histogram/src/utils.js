@@ -74,6 +74,7 @@ function Color() {
      */
     this.setRgb = function(r, g, b) {
         if (r < 0.0 || r > 1.0 || g < 0.0 || g > 1.0 || b < 0.0 || b > 1.0) {
+            console.log("r: ", r, " g: ", g, " b: ", b);
             throw new Exception("Inputted values must be in range 0-1 (inclusive)"); // TODO: Give erroneous values
         } else {
             _rgb = {
@@ -101,11 +102,15 @@ function Color() {
     };
 
     this.setHsl = function(h, s, l) {
-        _hsl = {
-            h: h,
-            s: s,
-            l: l
-        };
+        if (h < 0.0 || h > 1.0 || s < 0.0 || s > 1.0 || l < 0.0 || l > 1.0) {
+            throw new Exception("Inputted values outside accepted ranges"); // TODO: Give erroneous values
+        } else {
+            _hsl = {
+                h: h,
+                s: s,
+                l: l
+            };
+        }
     };
 
     this.getRgb = function() {
@@ -121,12 +126,6 @@ function Color() {
      */
     this.getHsl = function() {
         return _hsl
-    };
-
-    this.clone = function() {
-        var newColor = new Color();
-        newColor.setRgb(_rgb.r, _rgb.g, _rgb.b);
-        return newColor;
     };
 
     /**
@@ -154,10 +153,56 @@ function Color() {
 
     this.changeBrightness = function(adjustment) {
         rgbToHsl();
-        //_hsl.l += _hsl.l * (adjustment / 10);
         _hsl.l += 0.1 * adjustment;
+        if (_hsl.l < 0) {
+            _hsl.l = 0;
+        } else if (_hsl.l > 1) {
+            _hsl.l = 1;
+        }
         hslToRgb();
-        //this.setRgb(rgb.r, rgb.g, rgb.b);
+    };
+
+    this.changeContrast = function(adjustment) {
+        var C = adjustment * (255/10); // C in range -255 to 255
+        var factor = (259 * (C + 255)) / (255 * (259 - C));
+
+        var newR = (factor * ((_rgb.r * 255) - 128) + 128) / 255;
+        var newG = (factor * ((_rgb.g * 255) - 128) + 128) / 255;
+        var newB = (factor * ((_rgb.b * 255) - 128) + 128) / 255;
+
+        if (newR < 0.0) {
+            newR = 0;
+        }
+        if (newR > 1.0) {
+            newR = 1;
+        }
+
+        if (newG < 0.0) {
+            newG = 0;
+        }
+        if (newG > 1.0) {
+            newG = 1;
+        }
+
+        if (newB < 0.0) {
+            newB = 0;
+        }
+        if (newB > 1.0) {
+            newB = 1;
+        }
+
+        this.setRgb(newR, newG, newB);
+    };
+
+    this.changeSaturation = function(adjustment) {
+        rgbToHsl();
+        _hsl.s += 0.1 * adjustment; // S ranges between 0 and 1
+        if (_hsl.s < 0) {
+            _hsl.s = 0;
+        } else if (_hsl.s > 1) {
+            _hsl.s = 1;
+        }
+        hslToRgb();
     };
 
     this.rgbToLab = function() {
@@ -178,7 +223,7 @@ function Color() {
         var varY = _xyzToLabHelper(xyz.Y / 100.000);
         var varZ = _xyzToLabHelper(xyz.Z / 108.883);
 
-        //this.setLab((116 * varY) - 16,
+        //this.setLab((116 * varY) - 16, // This seems to be too slow?!?
         //            500 * (varX - varY),
         //            200 * (varY - varZ));
         _lab = {
@@ -316,7 +361,6 @@ function Color() {
         } else if (b < 0) {
             b = 0;
         }
-        //console.log(r + ", " + g + ", " + b);
         _this.setRgb(r, g, b);
     };
 
@@ -371,6 +415,12 @@ function Color() {
         } else {
             return v1;
         }
+    };
+
+    this.clone = function() {
+        var newColor = new Color();
+        newColor.setRgb(_rgb.r, _rgb.g, _rgb.b);
+        return newColor;
     };
 }
 

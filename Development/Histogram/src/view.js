@@ -21,12 +21,9 @@ function View(model, elements) {
         displayImage(args);
     });
 
-    _model.colorsReady.attach(function() {
+    _model.colorsChanged.attach(function() {
         plotColors();
-    });
-
-    _model.imageColorsModified.attach(function(sender, args) {
-        changeImageContext(args);
+        displayModifiedImage()
     });
 
     _elements.imageUploadButton.change(function(e) {
@@ -69,16 +66,22 @@ function View(model, elements) {
     // Private methods
     var displayImage = function(image) {
         var imageCanvas = document.getElementById("image_canvas");
+        imageCanvas.setAttribute("width", image.width);
+        imageCanvas.setAttribute("height", image.height);
         var context = imageCanvas.getContext("2d");
+
+        console.log("Image width : ", image.width);
+        console.log("Image height: ", image.height);
 
         context.drawImage(image, 0, 0);
 
         _this.imageDisplayed.notify(context);
     };
 
-    var changeImageContext = function(modifiedColors) {
-        var imageCanvas = document.getElementById("image_canvas");
-        var context = imageCanvas.getContext("2d");
+    var displayModifiedImage = function() {
+        var modifiedColors = _model.getColors();
+
+        var context = document.getElementById("image_canvas").getContext("2d");
 
         for (var y = 0; y < context.canvas.height; y++) {
             for (var x = 0; x < context.canvas.width; x++) {

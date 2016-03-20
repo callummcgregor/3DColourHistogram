@@ -6,8 +6,7 @@ function Model() {
     var _modifiedColors = []; // Colors currently being used (i.e. after colour changes applied)
 
     this.imageReady = new CustomEvent(this);
-    this.imageColorsModified = new CustomEvent(this);
-    this.colorsReady = new CustomEvent(this);
+    this.colorsChanged = new CustomEvent(this);
 
     /**
      * Get the current state of colours
@@ -42,7 +41,7 @@ function Model() {
         // TODO: How to detect the bit of extracted colours
         _originalColors = extractColors(context); // Save colours in original bit size as to not loose resolution unnecessarily
         copyOriginalColorsToModifiedColors();
-        this.colorsReady.notify();
+        this.colorsChanged.notify();
     };
 
     /**
@@ -51,22 +50,26 @@ function Model() {
      * @param adjustment In range -10 to +10, represents percentage of original value to increment or decrease by
      */
     this.applyColorChanges = function(control, adjustment) {
+        copyOriginalColorsToModifiedColors(); // Copy original colours by value to current colours
+
         switch (control) {
             case Model.BRIGHTNESS:
-                copyOriginalColorsToModifiedColors(); // Copy original colours by value to current colours
-                for (var i = 0; i < _modifiedColors.length; i++) {
+                for (var i = 0; i < _modifiedColors.length; i++) { // Apply brightness change to each colour
                     _modifiedColors[i].changeBrightness(adjustment);
                 }
-
-                this.colorsReady.notify();
-
-                this.imageColorsModified.notify(_modifiedColors);
-
+                this.colorsChanged.notify();
                 break;
             case Model.CONTRAST:
-
+                for (var i = 0; i < _modifiedColors.length; i++) { // Apply brightness change to each colour
+                    _modifiedColors[i].changeContrast(adjustment);
+                }
+                this.colorsChanged.notify();
                 break;
             case Model.SATURATION:
+                for (var i = 0; i < _modifiedColors.length; i++) { // Apply brightness change to each colour
+                    _modifiedColors[i].changeSaturation(adjustment);
+                }
+                this.colorsChanged.notify();
 
                 break;
             default:
