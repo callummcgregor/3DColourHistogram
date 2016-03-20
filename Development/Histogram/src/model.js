@@ -2,18 +2,18 @@
  * The Model
  **/
 function Model() {
-    var _image = null;
     var _originalColors = []; // The original colours in the image, saved in both RGB and CIE-Lab spaces
-    var _currentColors = [];  // Colors currently being used (i.e. after colour changes applied)
+    var _modifiedColors = []; // Colors currently being used (i.e. after colour changes applied)
 
     this.imageReady = new CustomEvent(this);
+    this.imageColorsModified = new CustomEvent(this);
     this.colorsReady = new CustomEvent(this);
 
     /**
      * Get the current state of colours
      */
     this.getColors = function() {
-        return _currentColors;
+        return _modifiedColors;
     };
 
     /**
@@ -26,41 +26,10 @@ function Model() {
         var image = new Image();
 
         image.onload = function() {
-            _image = image;
             _this.imageReady.notify(image);
         };
 
         image.src = URL.createObjectURL(imageFile); // TODO: Let this go to prevent memory leaks
-    };
-
-    /**
-     *
-     * @param control
-     * @param adjustment In range -10 to +10, represents percentage of original value to increment or decrease by
-     */
-    this.applyColorChanges = function(control, adjustment) {
-        switch (control) {
-            case Model.BRIGHTNESS:
-                //var changedColors = _originalColors.slice(); // Copy by value, not reference
-                //for (var i = 0; i < changedColors.length; i++) {
-                //    changedColors[i].changeBrightness(adjustment);
-                //}
-                //_currentColors = changedColors;
-                resetCurrentColors();
-                for (var i = 0; i < _currentColors.length; i++) {
-                    _currentColors[i].changeBrightness(adjustment);
-                }
-                this.colorsReady.notify();
-                break;
-            case Model.CONTRAST:
-
-                break;
-            case Model.SATURATION:
-
-                break;
-            default:
-                throw new Exception("Unrecognised colour control, " + control);
-        }
     };
 
     /**
@@ -72,9 +41,37 @@ function Model() {
     this.parseImage = function(context) {
         // TODO: How to detect the bit of extracted colours
         _originalColors = extractColors(context); // Save colours in original bit size as to not loose resolution unnecessarily
-        //_currentColors = _originalColors.slice();
-        resetCurrentColors();
+        copyOriginalColorsToModifiedColors();
         this.colorsReady.notify();
+    };
+
+    /**
+     *
+     * @param control
+     * @param adjustment In range -10 to +10, represents percentage of original value to increment or decrease by
+     */
+    this.applyColorChanges = function(control, adjustment) {
+        switch (control) {
+            case Model.BRIGHTNESS:
+                copyOriginalColorsToModifiedColors(); // Copy original colours by value to current colours
+                for (var i = 0; i < _modifiedColors.length; i++) {
+                    _modifiedColors[i].changeBrightness(adjustment);
+                }
+
+                this.colorsReady.notify();
+
+                this.imageColorsModified.notify(_modifiedColors);
+
+                break;
+            case Model.CONTRAST:
+
+                break;
+            case Model.SATURATION:
+
+                break;
+            default:
+                throw new Exception("Unrecognised colour control, " + control);
+        }
     };
 
     /**
@@ -105,12 +102,17 @@ function Model() {
         return colors;
     };
 
-    var resetCurrentColors = function() {
+    /**
+     * Reset the array of current colours as the array of original colours
+     * Done primarily to ensure that colour adjustments are reversable
+     * Note: For loop and clone method used to copy by value, not by reference
+     */
+    var copyOriginalColorsToModifiedColors = function() {
         var newCurrentColors = [_originalColors.length];
         for (var i = 0; i < _originalColors.length; i++) {
             newCurrentColors[i] = _originalColors[i].clone();
         }
-        _currentColors = newCurrentColors;
+        _modifiedColors = newCurrentColors;
     };
 }
 

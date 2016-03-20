@@ -209,6 +209,7 @@ function Color() {
         var varG = varX1*-0.9689 + varY1*1.8758  + varZ1*0.0415;
         var varB = varX1*0.0557  + varY1*-0.2040 + varZ1*1.0570;
 
+        // TODO: Clip proportionally, maintaining RGB ratio
         if (varR < 0) {
             varR = 0;
         }
@@ -266,6 +267,7 @@ function Color() {
                 h = (2/3) + deltaG - deltaR;
             }
 
+            // Periodic
             if (h < 0) {
                 h += 1;
             }
