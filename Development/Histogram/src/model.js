@@ -85,17 +85,23 @@ function Model() {
      * @returns {Array} An array of the RGB values from each pixel in the image
      */
     var extractColors = function(context) {
+        console.log("Extracting colours...");
+
         var width = context.canvas.width;
         var height = context.canvas.height;
         var colors = [];
 
-        console.log("Extracting colours...");
+        var imageData = context.getImageData(0, 0, width, height).data;
+
         var count = 0;
         for(var y = 0; y < height; y++) { // Traverses row by row
             for(var x = 0; x < width; x++) {
-                var imageData = context.getImageData(x, y, 1, 1).data;
+                //var imageData = context.getImageData(x, y, 1, 1).data;
                 var color = new Color;
-                color.setRgb(imageData[0]/255, imageData[1]/255, imageData[2]/255);
+                //color.setRgb(imageData[0]/255, imageData[1]/255, imageData[2]/255);
+                color.setRgb(imageData[(x * 4) + (y * (width * 4)) + 0]/255,
+                             imageData[(x * 4) + (y * (width * 4)) + 1]/255,
+                             imageData[(x * 4) + (y * (width * 4)) + 2]/255);
                 colors[count] = color;
                 count++;
             }

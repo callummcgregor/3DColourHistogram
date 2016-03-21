@@ -83,8 +83,8 @@ function View(model, elements) {
 
         var context = document.getElementById("image_canvas").getContext("2d");
 
-        for (var y = 0; y < context.canvas.height; y++) {
-            for (var x = 0; x < context.canvas.width; x++) {
+        for (var y = 0; y < context.canvas.height; y += 1) {
+            for (var x = 0; x < context.canvas.width; x += 1) {
                 // Define colour at this pixel with an array
                 var data = new Uint8ClampedArray(4);
                 data[0] = modifiedColors[x + (y * context.canvas.width)].getRgb().r * 255;
