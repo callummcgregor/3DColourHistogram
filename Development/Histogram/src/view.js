@@ -82,23 +82,39 @@ function View(model, elements) {
         var modifiedColors = _model.getColors();
 
         var context = document.getElementById("image_canvas").getContext("2d");
+        var width = context.canvas.width;
+        var height = context.canvas.height;
 
-        for (var y = 0; y < context.canvas.height; y += 1) {
-            for (var x = 0; x < context.canvas.width; x += 1) {
-                // Define colour at this pixel with an array
-                var data = new Uint8ClampedArray(4);
-                data[0] = modifiedColors[x + (y * context.canvas.width)].getRgb().r * 255;
-                data[1] = modifiedColors[x + (y * context.canvas.width)].getRgb().g * 255;
-                data[2] = modifiedColors[x + (y * context.canvas.width)].getRgb().b * 255;
-                data[3] = 255; // Alpha (assume to always be full)
+        var data = new Uint8ClampedArray(4 * width * height);
 
-                // Create new 1px by 1px ImageData object with colour data from above
-                var imageData = new ImageData(data, 1, 1);
-
-                // Put ImageData at the x,y pixel
-                context.putImageData(imageData, x, y);
+        for (var y = 0; y < height; y += 1) {
+            for (var x = 0; x < width; x += 1) {
+                data[(x * 4) + (y * (width * 4)) + 0] = modifiedColors[x + (y * context.canvas.width)].getRgb().r * 255;
+                data[(x * 4) + (y * (width * 4)) + 1] = modifiedColors[x + (y * context.canvas.width)].getRgb().g * 255;
+                data[(x * 4) + (y * (width * 4)) + 2] = modifiedColors[x + (y * context.canvas.width)].getRgb().b * 255;
+                data[(x * 4) + (y * (width * 4)) + 3] = 255; // Alpha (assume to always be full)
             }
         }
+
+        var imageData = new ImageData(data, width, height);
+        context.putImageData(imageData, 0, 0);
+
+        //for (var y = 0; y < context.canvas.height; y += 1) {
+        //    for (var x = 0; x < context.canvas.width; x += 1) {
+                // Define colour at this pixel with an array
+                //var data = new Uint8ClampedArray(4);
+                //data[0] = modifiedColors[x + (y * context.canvas.width)].getRgb().r * 255;
+                //data[1] = modifiedColors[x + (y * context.canvas.width)].getRgb().g * 255;
+                //data[2] = modifiedColors[x + (y * context.canvas.width)].getRgb().b * 255;
+                //data[3] = 255; // Alpha (assume to always be full)
+                //
+                //// Create new 1px by 1px ImageData object with colour data from above
+                //var imageData = new ImageData(data, 1, 1);
+
+                // Put ImageData at the x,y pixel
+                //context.putImageData(imageData, x, y);
+        //    }
+        //}
     };
 
     /**
