@@ -18,12 +18,12 @@ function View(model, elements) {
 
     // Attach listeners to the model and elements
     _model.imageReady.attach(function(sender, args) {
-        displayImage(args);
+        setupImageCanvas(args);
     });
 
     _model.colorsChanged.attach(function() {
         plotColors();
-        displayModifiedImage()
+        updateImageCanvas();
     });
 
     _elements.imageUploadButton.change(function(e) {
@@ -64,7 +64,12 @@ function View(model, elements) {
     };
 
     // Private methods
-    var displayImage = function(image) {
+    /**
+     * Sets up the image canvas with the HTML5 Image object passed from the model
+     *
+     * @param image HTML5 Image object
+     */
+    var setupImageCanvas = function(image) {
         var imageCanvas = document.getElementById("image_canvas");
         imageCanvas.setAttribute("width", image.width);
         imageCanvas.setAttribute("height", image.height);
@@ -78,7 +83,10 @@ function View(model, elements) {
         _this.imageDisplayed.notify(context);
     };
 
-    var displayModifiedImage = function() {
+    /**
+     * Updates the image canvas with the new colours from the model
+     */
+    var updateImageCanvas = function() {
         var modifiedColors = _model.getColors();
 
         var context = document.getElementById("image_canvas").getContext("2d");
@@ -98,23 +106,6 @@ function View(model, elements) {
 
         var imageData = new ImageData(data, width, height);
         context.putImageData(imageData, 0, 0);
-
-        //for (var y = 0; y < context.canvas.height; y += 1) {
-        //    for (var x = 0; x < context.canvas.width; x += 1) {
-                // Define colour at this pixel with an array
-                //var data = new Uint8ClampedArray(4);
-                //data[0] = modifiedColors[x + (y * context.canvas.width)].getRgb().r * 255;
-                //data[1] = modifiedColors[x + (y * context.canvas.width)].getRgb().g * 255;
-                //data[2] = modifiedColors[x + (y * context.canvas.width)].getRgb().b * 255;
-                //data[3] = 255; // Alpha (assume to always be full)
-                //
-                //// Create new 1px by 1px ImageData object with colour data from above
-                //var imageData = new ImageData(data, 1, 1);
-
-                // Put ImageData at the x,y pixel
-                //context.putImageData(imageData, x, y);
-        //    }
-        //}
     };
 
     /**
